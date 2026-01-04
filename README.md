@@ -1,6 +1,6 @@
-# sv
+# svo
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Everything you need to build a Svelte project, powered by [`svo`](https://github.com/sveltejs/cli).
 
 ## Creating a project
 
