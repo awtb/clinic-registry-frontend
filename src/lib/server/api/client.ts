@@ -1,6 +1,7 @@
 import type { z } from "zod"
 import { config } from "$lib/server/config"
 import type { ApiError, ApiResult, RequestArgs, RequestWithSchemaArgs } from "$lib/server/api/types"
+import { buildAuthClient } from "$lib/server/api/endpoints/auth"
 
 const getPayload = async (response: Response): Promise<unknown> => {
   const contentType = response.headers.get("content-type") ?? ""
@@ -99,7 +100,7 @@ const parseWithSchema = <T>(
   return { ok: true, status, data: parsed.data, headers }
 }
 
-export const buildClient = (fetchFn: typeof fetch) => {
+export const buildHttpClient = (fetchFn: typeof fetch) => {
   const requestRaw = buildRawRequester(fetchFn)
 
   const request = async <T>(args: RequestWithSchemaArgs<T>): Promise<ApiResult<T>> => {
@@ -109,4 +110,12 @@ export const buildClient = (fetchFn: typeof fetch) => {
   }
 
   return { request }
+}
+
+export const buildApiClient = (fetchFn: typeof fetch) => {
+  const httpClient = buildHttpClient(fetchFn)
+
+  return {
+    auth: buildAuthClient(httpClient),
+  }
 }

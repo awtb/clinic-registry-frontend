@@ -1,6 +1,6 @@
 import { fail } from "@sveltejs/kit"
 import type { Actions } from "./$types"
-import { buildAuthApi } from "$lib/server/api/endpoints/auth"
+import { buildApiClient } from "$lib/server/api/types"
 
 export const actions: Actions = {
   login: async ({ request, fetch, cookies }) => {
@@ -13,8 +13,8 @@ export const actions: Actions = {
       return fail(400, { message: "Email и пароль обязательны" })
     }
 
-    const auth = buildAuthApi(fetch)
-    const res = await auth.token(email, password)
+    const apiClient = buildApiClient(fetch)
+    const res = await apiClient.auth.token(email, password)
 
     if (!res.ok) {
       return fail(res.status || 401, { message: res.error.message })
