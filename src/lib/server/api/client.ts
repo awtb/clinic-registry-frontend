@@ -49,9 +49,12 @@ const buildUrl = (path: string) => `${config.apiBaseUrl}${path}`
 const buildRawRequester = (fetchFn: typeof fetch) => {
   return async (args: RequestArgs): Promise<ApiResult<unknown>> => {
     let response: Response
+    const finalUrl = buildUrl(args.path);
+
+    console.log("Fetching response", finalUrl);
 
     try {
-      response = await fetchFn(buildUrl(args.path), {
+      response = await fetchFn(finalUrl, {
         method: args.method,
         headers: args.headers,
         body: args.body,

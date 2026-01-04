@@ -1,31 +1,58 @@
-import { fail } from "@sveltejs/kit"
-import type { Actions } from "./$types"
-import { buildApiClient } from "$lib/server/api/types"
+import { superValidate } from "sveltekit-superforms/server"
+import { z } from "zod"
+import { zod } from "sveltekit-superforms/adapters"
+import {buildApiClient} from "$lib/server/api/client";
 
-export const actions: Actions = {
-  login: async ({ request, fetch, cookies }) => {
-    const formData = await request.formData()
+const schema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1)
+})
 
-    const email = String(formData.get("email") ?? "")
-    const password = String(formData.get("password") ?? "")
 
-    if (!email || !password) {
-      return fail(400, { message: "Email и пароль обязательны" })
+
+export const actions = {
+  default: async ({ request }) => {
+    console.log("Executing")
+    let requestBody = await request.formData()
+    if (!requestBody) {
+      console.error("Request body", requestBody)
     }
 
-    const apiClient = buildApiClient(fetch)
-    const res = await apiClient.auth.token(email, password)
+    console.log("OK, body found");
 
-    if (!res.ok) {
-      return fail(res.status || 401, { message: res.error.message })
+    let email = requestBody.get("email") ;
+
+    if (!email) {
+      return;
     }
 
-    cookies.set("access_token", res.data.access_token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 15,
-    })
-  },
+    email = email.toString();
+
+
+
+    let password = requestBody.get("password");
+
+    if (!password) {
+      return;
+    }
+
+    password = password.toString();
+
+
+
+    console.log("Current login", email);
+    console.log("Current password", password);
+
+    const apiClient = buildApiClient(fetch);
+    console.log("Building a client")
+    const response= await apiClient.auth.token(email, password);
+    console.log("Response is OK", response.ok)
+    console.log("full response", response)
+
+    if (response.status === 403){
+      console.log("Authentication failed")
+    }
+
+
+  }
 }

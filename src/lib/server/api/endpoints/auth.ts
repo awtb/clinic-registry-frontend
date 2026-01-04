@@ -10,7 +10,6 @@ type Client = ReturnType<typeof buildHttpClient>
 const buildTokenMethod = (client: Client) => {
   return async (email: string, password: string): Promise<ApiResult<Token>> => {
     const body = new URLSearchParams({ username: email, password })
-
     return await client.request({
       path: "/auth/token",
       method: "POST",
