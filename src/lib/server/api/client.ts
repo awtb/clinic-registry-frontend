@@ -2,6 +2,7 @@ import type { z } from "zod"
 import { config } from "$lib/server/config"
 import type { ApiError, ApiResult, RequestArgs, RequestWithSchemaArgs } from "$lib/server/api/types"
 import { buildAuthClient } from "$lib/server/api/endpoints/auth"
+import {buildUsersClient} from "$lib/server/api/endpoints/user";
 
 const getPayload = async (response: Response): Promise<unknown> => {
   const contentType = response.headers.get("content-type") ?? ""
@@ -51,13 +52,12 @@ const buildRawRequester = (fetchFn: typeof fetch) => {
     let response: Response
     const finalUrl = buildUrl(args.path);
 
-    console.log("Fetching response", finalUrl);
-
     try {
       response = await fetchFn(finalUrl, {
         method: args.method,
         headers: args.headers,
         body: args.body,
+        credentials: "include",
       })
     } catch (e) {
       return { ok: false, status: 0, error: buildNetworkError(e), headers: new Headers() }
@@ -120,5 +120,6 @@ export const buildApiClient = (fetchFn: typeof fetch) => {
 
   return {
     auth: buildAuthClient(httpClient),
+    users: buildUsersClient(httpClient),
   }
 }

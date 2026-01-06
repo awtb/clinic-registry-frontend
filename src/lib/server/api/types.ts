@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { buildHttpClient } from "$lib/server/api/client"
 import { buildAuthClient } from "$lib/server/api/endpoints/auth"
+import {buildUsersClient} from "$lib/server/api/endpoints/user";
 
 export type ApiError =
   | { kind: "network"; message: string; details?: unknown }
@@ -21,12 +22,4 @@ export type RequestArgs = {
 
 export type RequestWithSchemaArgs<T> = RequestArgs & {
   schema: z.ZodSchema<T>
-}
-
-export const buildApiClient = (fetchFn: typeof fetch) => {
-  const httpClient = buildHttpClient(fetchFn)
-
-  return {
-    auth: buildAuthClient(httpClient),
-  }
 }

@@ -7,7 +7,7 @@
     import {ClipboardPlus, Menu, Search, User} from 'lucide-svelte'
 
 
-    let {children} = $props()
+    let {data, children} = $props()
 </script>
 
 <svelte:head>
@@ -24,7 +24,7 @@
         <div class="flex items-center gap-3 min-w-0">
             <ClipboardPlus />
             <span class="text-lg font-semibold truncate">Реестр пациентов</span>
-            <Badge variant="secondary">Администратор</Badge>
+            <Badge variant="secondary">{data.currentUser.role}</Badge>
         </div>
 
         <div class="ml-auto flex items-center gap-2">
@@ -32,7 +32,6 @@
                 <Search class="h-5 w-5"/>
 
             </Button>
-
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                     <Button variant="ghost" size="icon" aria-label="Аккаунт">
@@ -46,13 +45,12 @@
                     <DropdownMenu.Separator/>
                     <DropdownMenu.Item class="text-destructive">Выйти</DropdownMenu.Item>
                 </DropdownMenu.Content>
+                <span class=" truncate">{data.currentUser.first_name}</span>
+
             </DropdownMenu.Root>
         </div>
     </div>
 </header>
-
-
-
     <main class="flex-1 grid place-items-center p-6">
         {@render children()}
     </main>
