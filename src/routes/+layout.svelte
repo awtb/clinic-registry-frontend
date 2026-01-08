@@ -17,12 +17,25 @@
 
 <header class="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
     <div class="h-16 w-full flex items-center gap-4 px-6">
-        <Button variant="ghost" size="icon" aria-label="Menu">
-            <Menu class="h-5 w-5"/>
-        </Button>
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Menu">
+                        <ClipboardPlus />
+
+                    </Button>
+                </DropdownMenu.Trigger>
+
+                <DropdownMenu.Content align="end" class="w-44">
+                    <DropdownMenu.Item>Профиль</DropdownMenu.Item>
+                    <DropdownMenu.Item>Настройки</DropdownMenu.Item>
+                    <DropdownMenu.Separator/>
+                    <DropdownMenu.Item class="text-destructive">Выйти</DropdownMenu.Item>
+                </DropdownMenu.Content>
+
+            </DropdownMenu.Root>
+
 
         <div class="flex items-center gap-3 min-w-0">
-            <ClipboardPlus />
             <span class="text-lg font-semibold truncate">Реестр пациентов</span>
             <Badge variant="secondary">{data.currentUser.role}</Badge>
         </div>

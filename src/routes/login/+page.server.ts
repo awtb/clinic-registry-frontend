@@ -1,6 +1,5 @@
-import { fail, redirect } from "@sveltejs/kit"
-import { z } from "zod"
-import { buildApiClient } from "$lib/server/api/client"
+import {fail, redirect} from "@sveltejs/kit"
+import {z} from "zod"
 
 const loginSchema = z.object({
     email: z.email(),
@@ -8,12 +7,12 @@ const loginSchema = z.object({
 })
 
 export const actions = {
-    default: async ({ request, cookies, fetch }) => {
+    default: async ({request, cookies, locals}) => {
         const formData = await request.formData()
         const email = String(formData.get("email") ?? "")
         const password = String(formData.get("password") ?? "")
 
-        const parsed = loginSchema.safeParse({ email, password })
+        const parsed = loginSchema.safeParse({email, password})
         if (!parsed.success) {
             return fail(400, {
                 email,
@@ -21,8 +20,7 @@ export const actions = {
             })
         }
 
-        const apiClient = buildApiClient(fetch)
-        const response = await apiClient.auth.token(email, password)
+        const response = await locals.apiClient.auth.token(email, password)
 
         if (!response.ok) {
             return fail(401, {

@@ -1,33 +1,41 @@
-import { redirect } from '@sveltejs/kit'
-import type { LayoutServerLoad } from './$types'
-import {buildApiClient} from "$lib/server/api/client";
+import {redirect} from '@sveltejs/kit'
+import type {LayoutServerLoad} from './$types'
 
-export const load: LayoutServerLoad = async ({ fetch, cookies, url }) => {
-    const token = cookies.get('access_token')
-    if (!token && url.pathname !== '/login') {
-        throw redirect(302, '/login')
-    }
-    else if (token && url.pathname !== '/login') {
-        let apiClient = buildApiClient(fetch)
-        let currentUser = await apiClient.users.me()
+type CurrentUser = {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    role: string
+}
 
-        if (!currentUser.ok) {
-            throw redirect(302, '/login')
+const guestUser: CurrentUser = {
+    role: 'guest',
+    first_name: 'Войти',
+    last_name: 'Guest',
+    id: '$1',
+    email: 'guest@clinica.local'
+}
+
+export const load: LayoutServerLoad = async ({url, locals}) => {
+    const currentUserResponse = await locals.apiClient.users.me()
+    let currentUser: CurrentUser
+
+    if (url.pathname == '/login') {
+        if (currentUserResponse.ok) {
+            throw redirect(302, '/')
         }
-
-        return {
-            currentUser: currentUser.data,
-        }
     }
 
+    if (currentUserResponse.ok) {
+        currentUser = currentUserResponse.data
+    } else {
+        currentUser = guestUser
+    }
+    
 
     return {
-        currentUser: {
-            'role': "guest",
-            "first_name": "Войти",
-            "last_name": "Guest",
-            "id": "$1"
-        }
+        currentUser: currentUser,
     }
 
 }
