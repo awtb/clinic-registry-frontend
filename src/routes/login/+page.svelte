@@ -9,7 +9,7 @@
   export let form: ActionData
 </script>
 
-<div class="w-full grid place-items-center min-h-[calc(100dvh-4rem)]">
+<div class="w-full flex items-center justify-center min-h-[calc(100dvh-4rem)]">
   <div class="w-full max-w-xl space-y-6">
     <h1 class="text-3xl font-bold text-center">Вход в систему</h1>
     <form method="POST" class="space-y-3">
