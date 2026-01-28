@@ -2,6 +2,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar"
   import { page } from "$app/stores"
   import { BriefcaseMedical, Home, NotepadText, Settings, Users } from "lucide-svelte"
+    import { goto } from "$app/navigation"
 
   export type SidebarItem = {
     title: string
@@ -32,8 +33,8 @@
         },
         {
             icon: BriefcaseMedical,
-            title: "Врачи",
-            href: "/doctors"
+            title: "Пользователи",
+            href: "/users"
         },
         {
             icon: NotepadText,
@@ -79,6 +80,7 @@
               {#each group.items as item}
                 <Sidebar.MenuItem>
                   <Sidebar.MenuButton
+                    on:click={() => goto(item.href)}
                     href={item.disabled ? undefined : item.href}
                     isActive={isActive(item.href)}
                     disabled={item.disabled}
