@@ -14,8 +14,8 @@
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen flex flex-col">
-  <header class="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
+<div class="h-dvh flex flex-col overflow-hidden">
+  <header class="h-16 shrink-0 z-50 border-b bg-background/80 backdrop-blur">
     <div class="h-16 w-full flex items-center gap-4 px-6">
       <a href="/">
         <ClipboardPlus />
@@ -51,14 +51,19 @@
     </div>
   </header>
 
-  {#if data.currentUser.role !== 'guest'}
-    <Sidebar footerTitle="Clinic Registry" footerSubtitle="v1.0.0"/>
-  <main class="flex-1 min-h-0 overflow-auto p-6">
-    {@render children()}
-  </main>
-  {:else}
-    <main class="flex-1 grid place-items-center p-6">
-      {@render children()}
-    </main>
-  {/if}
+  <div class="flex-1 min-h-0 flex">
+    {#if data.currentUser.role !== 'guest'}
+      <aside class="w-64 shrink-0 border-r bg-background overflow-hidden">
+        <Sidebar footerTitle="Clinic Registry" footerSubtitle="v1.0.0" />
+      </aside>
+
+      <main class="flex-1 min-w-0 min-h-0 overflow-auto p-6">
+        {@render children()}
+      </main>
+    {:else}
+      <main class="flex-1 min-w-0 min-h-0 overflow-auto grid place-items-center p-6">
+        {@render children()}
+      </main>
+    {/if}
+  </div>
 </div>

@@ -64,7 +64,7 @@
 </script>
 
 <Sidebar.Provider>
-  <Sidebar.Root class="fixed !top-12">
+  <Sidebar.Root class="md:top-16 md:h-[calc(100svh-4rem)]">
     <Sidebar.Header />
 
     <Sidebar.Content>
