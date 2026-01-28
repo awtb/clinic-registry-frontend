@@ -34,6 +34,7 @@
 	import type { ComponentProps, Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 	import { useSidebar } from "./context.svelte.js";
+	import { createEventDispatcher } from "svelte";
 
 	let {
 		ref = $bindable(null),
@@ -56,6 +57,7 @@
 	} = $props();
 
 	const sidebar = useSidebar();
+	const dispatch = createEventDispatcher();
 
 	const buttonProps = $derived({
 		class: cn(sidebarMenuButtonVariants({ variant, size }), className),
@@ -72,7 +74,7 @@
 	{#if child}
 		{@render child({ props: mergedProps })}
 	{:else}
-		<button bind:this={ref} {...mergedProps}>
+		<button bind:this={ref} {...mergedProps} on:click={(event) => dispatch("click", event)}>
 			{@render children?.()}
 		</button>
 	{/if}
