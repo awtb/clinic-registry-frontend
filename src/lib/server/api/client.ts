@@ -45,12 +45,20 @@ const buildSchemaError = (issues: unknown, payload: unknown): ApiError => ({
   payload,
 })
 
-const buildUrl = (path: string) => `${config.apiBaseUrl}${path}`
+const buildUrl = (path: string, params?: Record<string, string | number>) => {
+  const url = new URL(config.apiBaseUrl + path)
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, String(value))
+    })
+  }
+  return url.toString()
+}
 
 const buildRawRequester = (fetchFn: typeof fetch) => {
   return async (args: RequestArgs): Promise<ApiResult<unknown>> => {
     let response: Response
-    const finalUrl = buildUrl(args.path);
+    const finalUrl = buildUrl(args.path, args.params);
 
     try {
       response = await fetchFn(finalUrl, {
