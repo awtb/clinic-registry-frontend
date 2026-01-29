@@ -2,7 +2,8 @@
   import * as Table from "$lib/components/ui/table"
   import * as Sheet from "$lib/components/ui/sheet"
   import { buttonVariants } from "$lib/components/ui/button"
-    import { Badge } from "$lib/components/ui/badge"
+  import { Badge } from "$lib/components/ui/badge"
+  let { data } = $props()
 </script>
 
 <Table.Root>
@@ -15,26 +16,37 @@
     </Table.Row>
   </Table.Header>
   <Table.Body>
-    <Table.Row>
-      <Table.Cell class="font-medium">Ilyas Qalandarzoda</Table.Cell>
-      <Table.Cell>
-        <Badge variant="secondary">ADMIN</Badge>
-      </Table.Cell>
-      <Table.Cell>15</Table.Cell>
-      <Table.Cell>ACTIVE</Table.Cell>
-      <Table.Cell class="text-end">
-        <Sheet.Root>
-          <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Изменить</Sheet.Trigger>
-          <Sheet.Content>
-            <Sheet.Header>
-              <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
-              <Sheet.Description>
-                Внесите необходимые изменения в профиль пользователя.
-              </Sheet.Description>
-            </Sheet.Header>
-          </Sheet.Content>
-        </Sheet.Root>
-      </Table.Cell>
-    </Table.Row>
+
+    {#if !data.first_page}
+      <Table.Row>
+        <Table.Cell colspan="5" class="text-center py-4">
+          Нет данных для отображения
+        </Table.Cell>
+      </Table.Row>
+    {:else}
+    {#each data.first_page.items as item}
+      <Table.Row>
+        <Table.Cell class="font-medium">{item.first_name} {item.last_name}</Table.Cell>
+        <Table.Cell>
+          <Badge variant="secondary">{item.role}</Badge>
+        </Table.Cell>
+        <Table.Cell>15</Table.Cell>
+        <Table.Cell>ACTIVE</Table.Cell>
+        <Table.Cell class="text-end">
+          <Sheet.Root>
+            <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Изменить</Sheet.Trigger>
+            <Sheet.Content>
+              <Sheet.Header>
+                <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
+                <Sheet.Description>
+                  Внесите необходимые изменения в профиль пользователя.
+                </Sheet.Description>
+              </Sheet.Header>
+            </Sheet.Content>
+          </Sheet.Root>
+        </Table.Cell>
+      </Table.Row>
+    {/each}
+    {/if}
   </Table.Body>
 </Table.Root>
