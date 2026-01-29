@@ -18,6 +18,7 @@ export type RequestArgs = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
   headers?: Record<string, string>
   body?: BodyInit
+  params?: Record<string, string | number>
 }
 
 export type RequestWithSchemaArgs<T> = RequestArgs & {
