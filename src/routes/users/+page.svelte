@@ -17,18 +17,18 @@
   </Table.Header>
   <Table.Body>
 
-    {#if !data.first_page}
+    {#if !data.usersResponse.ok}
       <Table.Row>
         <Table.Cell colspan="5" class="text-center py-4">
           Нет данных для отображения
         </Table.Cell>
       </Table.Row>
     {:else}
-    {#each data.first_page.items as item}
+    {#each data.usersResponse.data.items as user}
       <Table.Row>
-        <Table.Cell class="font-medium">{item.first_name} {item.last_name}</Table.Cell>
+        <Table.Cell class="font-medium">{user.first_name} {user.last_name}</Table.Cell>
         <Table.Cell>
-          <Badge variant="secondary">{item.role}</Badge>
+          <Badge variant="secondary">{user.role}</Badge>
         </Table.Cell>
         <Table.Cell>15</Table.Cell>
         <Table.Cell>ACTIVE</Table.Cell>
