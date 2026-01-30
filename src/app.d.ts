@@ -1,6 +1,6 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
-import type {buildApiClient} from "$lib/server/api/client";
+import type {buildApiClient} from "$lib/shared/api/client";
 
 declare global {
   namespace App {

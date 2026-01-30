@@ -1,4 +1,4 @@
-import {buildApiClient} from "$lib/server/api/client";
+import {buildApiClient} from "$lib/shared/api/client";
 import type {Handle} from "@sveltejs/kit";
 import {config} from "$lib/server/config";
 
@@ -16,6 +16,6 @@ export const handleFetch = async ({event, request, fetch}) => {
 }
 
 export const handle: Handle = async ({event, resolve}) => {
-    event.locals.apiClient = buildApiClient(event.fetch)
+    event.locals.apiClient = buildApiClient(event.fetch, config.apiBaseUrl)
     return resolve(event)
 }
