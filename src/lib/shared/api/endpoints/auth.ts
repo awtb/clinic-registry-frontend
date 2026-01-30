@@ -1,7 +1,7 @@
 import type { z } from "zod"
-import { buildHttpClient } from "$lib/server/api/client"
+import { buildHttpClient } from "$lib/shared/api/client"
 import { TokenSchema } from "$lib/schemas/auth"
-import type { ApiResult } from "$lib/server/api/types"
+import type { ApiResult } from "$lib/shared/api/types"
 
 export type Token = z.infer<typeof TokenSchema>
 
@@ -11,7 +11,7 @@ const buildTokenMethod = (client: Client) => {
   return async (email: string, password: string): Promise<ApiResult<Token>> => {
     const body = new URLSearchParams({ username: email, password })
     return await client.request({
-      path: "/auth/token",
+      path: "auth/token",
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,

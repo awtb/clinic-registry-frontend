@@ -1,6 +1,6 @@
 import type { z } from "zod"
-import { buildHttpClient } from "$lib/server/api/client"
-import type { ApiResult } from "$lib/server/api/types"
+import { buildHttpClient } from "$lib/shared/api/client"
+import type { ApiResult } from "$lib/shared/api/types"
 import { UserSchema } from "$lib/schemas/user"
 import { createPageSchema } from "$lib/schemas/base"
 
@@ -12,7 +12,7 @@ const UserPageSchema = createPageSchema(UserSchema)
 const buildProfileMethod = (client: Client) => {
   return async (): Promise<ApiResult<User>> => {
     return await client.request({
-      path: "/users/me",
+      path: "users/me",
       method: "GET",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       schema: UserSchema,
@@ -23,7 +23,7 @@ const buildProfileMethod = (client: Client) => {
 const buildGetAllUsersMethod = (client: Client) => {
   return async (page: number, page_size: number) => {
     return await client.request({
-      path: "/users",
+      path: "users",
       method: "GET",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       schema: UserPageSchema,

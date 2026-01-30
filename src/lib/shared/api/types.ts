@@ -1,7 +1,4 @@
 import { z } from "zod"
-import { buildHttpClient } from "$lib/server/api/client"
-import { buildAuthClient } from "$lib/server/api/endpoints/auth"
-import {buildUsersClient} from "$lib/server/api/endpoints/user";
 
 export type ApiError =
   | { kind: "network"; message: string; details?: unknown }
@@ -9,8 +6,8 @@ export type ApiError =
   | { kind: "parse"; message: string; details?: unknown }
   | { kind: "schema"; message: string; issues: unknown; payload?: unknown }
 
-export type ApiOk<T> = { ok: true; status: number; data: T; }
-export type ApiErr = { ok: false; status: number; error: ApiError;}
+export type ApiOk<T> = { ok: true; status: number; data: T }
+export type ApiErr = { ok: false; status: number; error: ApiError }
 export type ApiResult<T> = ApiOk<T> | ApiErr
 
 export type RequestArgs = {
