@@ -6,8 +6,19 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import { ClipboardPlus, Search, User } from 'lucide-svelte'
   import Sidebar from '$lib/layout/Sidebar.svelte'
+  import {setContext} from "svelte";
+  import {buildApiClient} from "$lib/shared/api/client";
+  import {apiClientKey} from "$lib/shared/api/context";
+    import { browser } from '$app/environment'
 
   let { data, children } = $props()
+
+
+  if (browser) {
+    const baseUrl = new URL("/api/", window.location.origin).toString()
+    setContext(apiClientKey, buildApiClient(fetch, baseUrl))
+  }
+
 </script>
 
 <svelte:head>
