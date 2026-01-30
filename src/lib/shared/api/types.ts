@@ -9,8 +9,8 @@ export type ApiError =
   | { kind: "parse"; message: string; details?: unknown }
   | { kind: "schema"; message: string; issues: unknown; payload?: unknown }
 
-export type ApiOk<T> = { ok: true; status: number; data: T; headers: Headers }
-export type ApiErr = { ok: false; status: number; error: ApiError; headers: Headers }
+export type ApiOk<T> = { ok: true; status: number; data: T; }
+export type ApiErr = { ok: false; status: number; error: ApiError;}
 export type ApiResult<T> = ApiOk<T> | ApiErr
 
 export type RequestArgs = {

@@ -108,7 +108,7 @@ const parseWithSchema = <T>(
     return { ok: false, status, error: buildSchemaError(parsed.error, payload), headers }
   }
 
-  return { ok: true, status, data: parsed.data, headers }
+  return { ok: true, status, data: parsed.data }
 }
 
 export const buildHttpClient = (fetchFn: typeof fetch) => {
