@@ -2,6 +2,7 @@ import type {z} from "zod"
 import type {ApiError, ApiResult, RequestArgs, RequestWithSchemaArgs} from "$lib/shared/api/types"
 import {buildAuthClient} from "$lib/shared/api/endpoints/auth"
 import {buildUsersClient} from "$lib/shared/api/endpoints/user";
+import { buildPatientsClient as buildPatientsClient } from "./endpoints/patient";
 
 const getPayload = async (response: Response): Promise<unknown> => {
     const contentType = response.headers.get("content-type") ?? ""
@@ -122,5 +123,6 @@ export const buildApiClient = (fetchFn: typeof fetch, baseUrl: string) => {
     return {
         auth: buildAuthClient(httpClient),
         users: buildUsersClient(httpClient),
+        patients: buildPatientsClient(httpClient),
     }
 }
