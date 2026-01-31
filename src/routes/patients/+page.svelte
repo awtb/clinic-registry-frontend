@@ -11,8 +11,15 @@
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import { Input } from "$lib/components/ui/input/index.js"
   import { Label } from "$lib/components/ui/label/index.js"
+  import { PatientCreateSchema } from "$lib/schemas/patient"
+  import * as Select from "$lib/components/ui/select/index.js"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
+
+  const genders = [
+    { label: "Мужской", value: "MALE" },
+    { label: "Женский", value: "FEMALE" },
+  ]
 
   let { data } = $props()
   let pageData = $derived(data)
@@ -30,6 +37,37 @@
       replaceState: true,
       noScroll: true,
     })
+  }
+
+  async function createPatient(event: SubmitEvent) {
+    event.preventDefault()
+    const form = event.target as HTMLFormElement
+    const formData = new FormData(form)
+
+    const payload = PatientCreateSchema.safeParse({
+      first_name: formData.get("first_name"),
+      last_name: formData.get("last_name"),
+      birth_date: formData.get("birth_date")
+        ? new Date(formData.get("birth_date") as string)
+        : undefined,
+      phone_number: formData.get("phone") as string,
+      passport_number: formData.get("passport") as string,
+      gender: value,
+    })
+
+    if (!payload.success) {
+      console.error("Validation failed:", payload.error)
+      return
+    }
+
+
+    const response = await apiClient.patients.create(payload.data)
+
+    if (response.ok) {
+      await loadPatientsPage(1)
+    } else {
+      console.error("Failed to create patient:", response)
+    }
   }
 
   async function loadPatientsPage(page: number) {
@@ -61,50 +99,75 @@
     if (currentPage >= totalPages) return
     loadPatientsPage(currentPage + 1)
   }
+
+  let value = $state("");
+  const triggerGender = $derived(
+    genders.find((g) => g.value === value)?.label ?? "Select a gender"
+  );
+
+
 </script>
 
-<div class="flex items-center justify-between mb-4 ">
+<div class="flex items-center justify-between mb-4">
   <h1 class="text-2xl font-bold mb-4">Пациенты</h1>
   <Dialog.Root>
-    <form>
-      <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-        >Добавить пациента</Dialog.Trigger
-      >
-      <Dialog.Content class="sm:max-w-[425px]">
+    <Dialog.Trigger type="button" class={buttonVariants({ variant: "outline" })}>
+      Добавить пациента
+    </Dialog.Trigger>
+
+    <Dialog.Content class="sm:max-w-[425px]">
+      <form method="POST" onsubmit={createPatient}>
         <Dialog.Header>
           <Dialog.Title>Добавление нового пациента</Dialog.Title>
-          <Dialog.Description>
-            Внесите необходимые данные нового пациента.
-          </Dialog.Description>
+          <Dialog.Description>Внесите необходимые данные нового пациента.</Dialog.Description>
         </Dialog.Header>
+
         <div class="grid gap-4">
           <div class="grid gap-3">
-            <Label for="name-1">Имя</Label>
-            <Input id="name-1" name="name" defaultValue="Исломджон" />
+            <Label for="first-name">Имя</Label>
+            <Input id="first-name" name="first_name" defaultValue="Исломджон" />
           </div>
+
           <div class="grid gap-3">
-            <Label for="username-1">Фамилия</Label>
-            <Input id="username-1" name="username" defaultValue="Хушназаров" />
+            <Label for="last-name">Фамилия</Label>
+            <Input id="last-name" name="last_name" defaultValue="Хушназаров" />
           </div>
+
           <div class="grid gap-3">
-            <Label for="email-1">Дата рождения</Label>
-            <Input id="email-1" name="email" type="date" defaultValue="2004-11-13" />
+            <Label for="birth_date">Дата рождения</Label>
+            <Input id="birth_date" name="birth_date" type="date" defaultValue="2004-11-13" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="phone">Номер телефона</Label>
+            <Input id="phone" name="phone" type="tel" defaultValue="+992901234567" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="passport">Паспорт</Label>
+            <Input id="passport" name="passport" defaultValue="AA1234567" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="gender">Пол</Label>
+            <Select.Root type="single" bind:value>
+            <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
+            <Select.Content>
+              {#each genders as gender}
+                <Select.Item value={gender.value}>{gender.label}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
         </div>
-          <div class="grid gap-3">
-            <Label for="phone-1">Номер телефона</Label>
-            <Input id="phone-1" name="phone" type="tel" defaultValue="+998901234567" />
-          </div>
-          <div class="grid gap-3">
-            <Label for="passport-1">Паспорт</Label>
-            <Input id="passport-1" name="passport" defaultValue="AA1234567" />
-          </div>
-        </div>
-        <Dialog.Footer>
-          <Dialog.Close class={buttonVariants({ variant: "outline" })}>Отменить</Dialog.Close>
+
+        <Dialog.Footer class="mt-4">
+          <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+            Отменить
+          </Dialog.Close>
           <Button type="submit">Сохранить</Button>
         </Dialog.Footer>
-      </Dialog.Content>
-    </form>
+      </form>
+    </Dialog.Content>
   </Dialog.Root>
 </div>
 
@@ -131,10 +194,14 @@
             <Table.Row>
               <Table.Cell class="font-medium">{patient.first_name} {patient.last_name}</Table.Cell>
               <Table.Cell>
-                <Badge variant="secondary">{patient.gender}</Badge>
+                {patient.birth_date ?? "Не указано."}
               </Table.Cell>
-              <Table.Cell>15</Table.Cell>
-              <Table.Cell>ACTIVE</Table.Cell>
+              <Table.Cell>
+                {patient.last_visit ?? "Нет посещений."}
+              </Table.Cell>
+              <Table.Cell>{patient.passport_number}</Table.Cell>
+              <Table.Cell>{patient.phone_number}</Table.Cell>
+              <Table.Cell>{patient.gender}</Table.Cell>
               <Table.Cell class="text-end">
                 <Sheet.Root>
                   <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
@@ -173,7 +240,7 @@
                 <Pagination.Link
                   {page}
                   isActive={currentPage === page.value}
-                  onclick={() => loadUsersPage(page.value)}
+                  onclick={() => loadPatientsPage(page.value)}
                 >
                   {page.value}
                 </Pagination.Link>

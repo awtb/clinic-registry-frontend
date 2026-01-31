@@ -8,6 +8,8 @@ export const load: LayoutServerLoad = async ({ url, locals }) => {
 
   const patientsResponse = await locals.apiClient.patients.getAll(page, pageSize)
 
+  console.log("Patients response:", patientsResponse)
+
   return {
     patientsResponse: {
       ok: patientsResponse.ok,
@@ -15,3 +17,4 @@ export const load: LayoutServerLoad = async ({ url, locals }) => {
     },
   }
 }
+
