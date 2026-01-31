@@ -1,5 +1,5 @@
 import { createPageSchema } from "$lib/schemas/base"
-import { PatientSchema } from "$lib/schemas/patient"
+import { PatientSchema, PatientCreateSchema } from "$lib/schemas/patient"
 import type { buildHttpClient } from "../client"
 
 type Client = ReturnType<typeof buildHttpClient>
@@ -19,8 +19,22 @@ const buildGetAllPatientsMethod = (httpClient: Client) => {
     }
 }
 
+
+const buildCreatePatientMethod = (httpClient: Client) => {
+    return async (payload: typeof PatientCreateSchema) => {
+        return await httpClient.request({
+            path: "patients",
+            method: "POST",
+            body: JSON.stringify(payload),
+            headers: { "Content-Type": "application/json" },
+            schema: PatientSchema
+        })
+    }
+}
+
 export const buildPatientsClient = (httpClient: ReturnType<typeof buildHttpClient>) => {
     return {
-        getAll: buildGetAllPatientsMethod(httpClient)
+        getAll: buildGetAllPatientsMethod(httpClient),
+        create: buildCreatePatientMethod(httpClient)
     }
 }
