@@ -1,8 +1,13 @@
 <script lang="ts">
   import * as Table from "$lib/components/ui/table"
   import * as Sheet from "$lib/components/ui/sheet"
+  import * as Dialog from "$lib/components/ui/dialog"
+  import * as Select from "$lib/components/ui/select/index.js"
+  import { Label } from "$lib/components/ui/label/index.js"
+  import { Input } from "$lib/components/ui/input/index.js"
   import { buttonVariants } from "$lib/components/ui/button"
   import { Badge } from "$lib/components/ui/badge"
+  import { Button } from "$lib/components/ui/button"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
 
   import { goto } from "$app/navigation"
@@ -59,6 +64,68 @@
     loadUsersPage(currentPage + 1)
   }
 </script>
+
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-bold mb-4">Пользователи системы</h1>
+  <Dialog.Root>
+    <Dialog.Trigger type="button" class={buttonVariants({ variant: "outline" })}>
+      Добавить пользователя
+    </Dialog.Trigger>
+
+    <Dialog.Content class="sm:max-w-[425px]">
+      <form method="POST" onsubmit={createPatient}>
+        <Dialog.Header>
+          <Dialog.Title>Добавление нового пользователя</Dialog.Title>
+        </Dialog.Header>
+
+        <div class="grid gap-4 mt-4">
+          <div class="grid gap-3">
+            <Label for="first-name">Имя</Label>
+            <Input id="first-name" name="first_name" defaultValue="Исломджон" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="last-name">Фамилия</Label>
+            <Input id="last-name" name="last_name" defaultValue="Хушназаров" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="birth_date">Роль</Label>
+            <Input id="birth_date" name="birth_date" type="date" defaultValue="2004-11-13" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="phone">Номер телефона</Label>
+            <Input id="phone" name="phone" type="tel" defaultValue="+992901234567" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="passport">Паспорт</Label>
+            <Input id="passport" name="passport" defaultValue="AA1234567" />
+          </div>
+
+          <!-- <div class="grid gap-3">
+            <Label for="gender">Пол</Label>
+            <Select.Root type="single" bind:value>
+            <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
+            <Select.Content>
+              {#each genders as gender}
+                <Select.Item value={gender.value}>{gender.label}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div> -->
+
+        <Dialog.Footer class="mt-4">
+          <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+            Отменить
+          </Dialog.Close>
+          <Button type="submit">Сохранить</Button>
+        </Dialog.Footer>
+      </form>
+    </Dialog.Content>
+  </Dialog.Root>
+</div>
 
 <div class="min-h-[calc(100dvh-8rem)] flex flex-col">
   {#key currentPage}
