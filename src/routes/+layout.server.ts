@@ -1,5 +1,5 @@
-import {redirect} from '@sveltejs/kit'
-import type {LayoutServerLoad} from './$types'
+import { redirect } from '@sveltejs/kit'
+import type { LayoutServerLoad } from './$types'
 
 type CurrentUser = {
     id: string
@@ -17,7 +17,7 @@ const guestUser: CurrentUser = {
     email: 'guest@clinica.local'
 }
 
-export const load: LayoutServerLoad = async ({url, locals}) => {
+export const load: LayoutServerLoad = async ({ url, locals }) => {
     const currentUserResponse = await locals.apiClient.users.me()
     let currentUser: CurrentUser
 
