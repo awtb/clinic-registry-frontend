@@ -2,7 +2,6 @@
   import * as Table from "$lib/components/ui/table"
   import * as Sheet from "$lib/components/ui/sheet"
   import * as Dialog from "$lib/components/ui/dialog"
-  import * as Select from "$lib/components/ui/select/index.js"
   import { Label } from "$lib/components/ui/label/index.js"
   import { Input } from "$lib/components/ui/input/index.js"
   import { buttonVariants } from "$lib/components/ui/button"

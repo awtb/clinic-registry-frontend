@@ -4,11 +4,10 @@ import {config} from "$lib/server/config";
 
 export const handleFetch = async ({event, request, fetch}) => {
     if (!request.url.startsWith(config.apiBaseUrl)) {
-        return;
+        return fetch(request)
     }
 
-
-    let accessToken = event.cookies.get("access_token") || ""
+    const accessToken = event.cookies.get("access_token") || ""
     const headers = new Headers(request.headers)
     headers.set("Authorization", "Bearer " + accessToken)
 
