@@ -9,3 +9,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   return json(usersResponse.data)
 }
+
+export const POST: RequestHandler = async ({ locals, request }) => {
+  const payload = await request.json()
+  const userCreateResponse = await locals.apiClient.users.create(payload)
+
+  return json(userCreateResponse.data)
+}

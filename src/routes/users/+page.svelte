@@ -8,6 +8,8 @@
   import { Badge } from "$lib/components/ui/badge"
   import { Button } from "$lib/components/ui/button"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
+  import * as Select from "$lib/components/ui/select/index.js"
+  import { UserCreateSchema } from "$lib/schemas/user"
 
   import { goto } from "$app/navigation"
   import { getContext } from "svelte"
@@ -22,6 +24,16 @@
   let pageSize = $state(data.usersResponse?.ok ? data.usersResponse.data.page_size : 10)
   let totalItems = $state(data.usersResponse?.ok ? data.usersResponse.data.total_items : 0)
   let isLoading = $state(false)
+  let roleValue = $state("")
+
+  const roles = [
+    { label: "Админ", value: "admin" },
+    { label: "Врач", value: "doctor" },
+  ]
+
+  const triggerRole = $derived(
+    roles.find((role) => role.value === roleValue)?.label ?? "Выберите роль"
+  )
 
   const updateQueryParams = async (page: number, size: number) => {
     const params = new URLSearchParams(window.location.search)
@@ -31,6 +43,35 @@
       replaceState: true,
       noScroll: true,
     })
+  }
+
+  async function createUser(event: SubmitEvent) {
+    event.preventDefault()
+    const form = event.target as HTMLFormElement
+    const formData = new FormData(form)
+
+    const payload = UserCreateSchema.safeParse({
+      first_name: formData.get("first_name"),
+      last_name: formData.get("last_name"),
+      email: formData.get("email"),
+      role: roleValue,
+      password: formData.get("password"),
+    })
+
+    if (!payload.success) {
+      console.error("Validation failed:", payload.error)
+      return
+    }
+
+    const response = await apiClient.users.create(payload.data)
+
+    if (response.ok) {
+      await loadUsersPage(1)
+      form.reset()
+      roleValue = ""
+    } else {
+      console.error("Failed to create user:", response)
+    }
   }
 
   async function loadUsersPage(page: number) {
@@ -46,7 +87,7 @@
       return
     }
 
-    pageData = { ...pageData, usersResponse: { ok: true, data: usersResponse.data } }
+    pageData = { ...pageData, usersResponse: usersResponse }
     currentPage = usersResponse.data.page
     totalPages = usersResponse.data.total_pages
 
@@ -72,7 +113,7 @@
     </Dialog.Trigger>
 
     <Dialog.Content class="sm:max-w-[425px]">
-      <form method="POST" onsubmit={createPatient}>
+      <form method="POST" onsubmit={createUser}>
         <Dialog.Header>
           <Dialog.Title>Добавление нового пользователя</Dialog.Title>
         </Dialog.Header>
@@ -89,18 +130,25 @@
           </div>
 
           <div class="grid gap-3">
-            <Label for="birth_date">Роль</Label>
-            <Input id="birth_date" name="birth_date" type="date" defaultValue="2004-11-13" />
+            <Label for="email">Email</Label>
+            <Input id="email" name="email" type="email" autocomplete="email" />
           </div>
 
           <div class="grid gap-3">
-            <Label for="phone">Номер телефона</Label>
-            <Input id="phone" name="phone" type="tel" defaultValue="+992901234567" />
+            <Label for="password">Пароль</Label>
+            <Input id="password" name="password" type="password" autocomplete="new-password" />
           </div>
 
           <div class="grid gap-3">
-            <Label for="passport">Паспорт</Label>
-            <Input id="passport" name="passport" defaultValue="AA1234567" />
+            <Label for="role">Роль</Label>
+            <Select.Root type="single" bind:value={roleValue}>
+              <Select.Trigger id="role" class="w-[180px]">{triggerRole}</Select.Trigger>
+              <Select.Content>
+                {#each roles as role}
+                  <Select.Item value={role.value}>{role.label}</Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
           </div>
 
           <!-- <div class="grid gap-3">
@@ -138,9 +186,9 @@
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#if !pageData.usersResponse.ok}
+        {#if !pageData.usersResponse.data}
           <Table.Row>
-            <Table.Cell colspan="5" class="text-center py-4">Нет данных для отображения</Table.Cell>
+            <Table.Cell colspan=5 class="text-center py-4">Нет данных для отображения</Table.Cell>
           </Table.Row>
         {:else}
           {#each pageData.usersResponse.data.items as user}
