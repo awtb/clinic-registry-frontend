@@ -169,6 +169,7 @@
           </Dialog.Close>
           <Button type="submit">Сохранить</Button>
         </Dialog.Footer>
+      </div>
       </form>
     </Dialog.Content>
   </Dialog.Root>

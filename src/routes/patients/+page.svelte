@@ -166,6 +166,7 @@
           </Dialog.Close>
           <Button type="submit">Сохранить</Button>
         </Dialog.Footer>
+      </div>
       </form>
     </Dialog.Content>
   </Dialog.Root>
@@ -185,9 +186,9 @@
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#if !pageData.patientsResponse.ok}
+        {#if !pageData.patientsResponse.data}
           <Table.Row>
-            <Table.Cell colspan="5" class="text-center py-4">Нет данных для отображения</Table.Cell>
+            <Table.Cell colspan=5 class="text-center py-4">Нет данных для отображения</Table.Cell>
           </Table.Row>
         {:else}
           {#each pageData.patientsResponse.data.items as patient}
