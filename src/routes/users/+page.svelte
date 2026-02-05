@@ -53,6 +53,7 @@
     const payload = UserCreateSchema.safeParse({
       first_name: formData.get("first_name"),
       last_name: formData.get("last_name"),
+      username: formData.get("username"),
       email: formData.get("email"),
       role: roleValue,
       password: formData.get("password"),
@@ -127,6 +128,11 @@
           <div class="grid gap-3">
             <Label for="last-name">Фамилия</Label>
             <Input id="last-name" name="last_name" defaultValue="Хушназаров" />
+          </div>
+
+          <div class="grid gap-3">
+            <Label for="username">Имя пользователя</Label>
+            <Input id="username" name="username" autocomplete="username" />
           </div>
 
           <div class="grid gap-3">
