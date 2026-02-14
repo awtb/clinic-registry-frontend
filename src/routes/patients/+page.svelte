@@ -5,14 +5,14 @@
   import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Dialog from "$lib/components/ui/dialog/index.js"
-
-  import { goto } from "$app/navigation"
+  import { replaceState } from "$app/navigation"
   import { getContext } from "svelte"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import { Input } from "$lib/components/ui/input/index.js"
   import { Label } from "$lib/components/ui/label/index.js"
   import { PatientCreateSchema } from "$lib/schemas/patient"
   import * as Select from "$lib/components/ui/select/index.js"
+  import type { PageData } from "./$types"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
 
@@ -21,22 +21,21 @@
     { label: "Женский", value: "FEMALE" },
   ]
 
-  let { data } = $props()
-  let pageData = $derived(data)
-  let currentPage = $state(data.patientsResponse?.ok ? data.patientsResponse.data.page : 1)
-  let totalPages = $state(data.patientsResponse?.ok ? data.patientsResponse.data.total_pages : 1)
-  let pageSize = $state(data.patientsResponse?.ok ? data.patientsResponse.data.page_size : 10)
-  let totalItems = $state(data.patientsResponse?.ok ? data.patientsResponse.data.total_items : 0)
+  const props = $props<{ data: PageData }>()
+  let patientsResponse = $state(props.data.patientsResponse)
+
+  let currentPage = $derived(patientsResponse?.ok ? patientsResponse.data.page : 1)
+  const totalPages = $derived(patientsResponse?.ok ? patientsResponse.data.total_pages : 1)
+  const pageSize = $derived(patientsResponse?.ok ? patientsResponse.data.page_size : 10)
+  const totalItems = $derived(patientsResponse?.ok ? patientsResponse.data.total_items : 0)
+
   let isLoading = $state(false)
 
-  const updateQueryParams = async (page: number, size: number) => {
-    const params = new URLSearchParams(window.location.search)
-    params.set("page", String(page))
-    params.set("page_size", String(size))
-    await goto(`?${params.toString()}`, {
-      replaceState: true,
-      noScroll: true,
-    })
+  const updateQueryParams = (nextPage: number, nextSize: number) => {
+    const params = new URLSearchParams()
+    params.set("page", String(nextPage))
+    params.set("page_size", String(nextSize))
+    replaceState(`?${params.toString()}`, {})
   }
 
   async function createPatient(event: SubmitEvent) {
@@ -60,7 +59,6 @@
       return
     }
 
-
     const response = await apiClient.patients.create(payload.data)
 
     if (response.ok) {
@@ -74,18 +72,15 @@
     if (isLoading) return
     isLoading = true
 
-    await updateQueryParams(page, pageSize)
+    const r = await apiClient.patients.getAll(page, pageSize)
 
-    const patientsResponse = await apiClient.patients.getAll(page, pageSize)
-
-    if (!patientsResponse.ok) {
+    if (!r.ok) {
       isLoading = false
       return
     }
 
-    pageData = { ...pageData, patientsResponse: { ok: true, data: patientsResponse.data } }
-    currentPage = patientsResponse.data.page
-    totalPages = patientsResponse.data.total_pages
+    patientsResponse = { ok: true, status: r.status, data: r.data }
+    updateQueryParams(page, pageSize)
 
     isLoading = false
   }
@@ -100,12 +95,8 @@
     loadPatientsPage(currentPage + 1)
   }
 
-  let value = $state("");
-  const triggerGender = $derived(
-    genders.find((g) => g.value === value)?.label ?? "Select a gender"
-  );
-
-
+  let value = $state("")
+  const triggerGender = $derived(genders.find((g) => g.value === value)?.label ?? "Выберите пол")
 </script>
 
 <div class="flex items-center justify-between mb-4">
@@ -151,87 +142,86 @@
           <div class="grid gap-3">
             <Label for="gender">Пол</Label>
             <Select.Root type="single" bind:value>
-            <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
-            <Select.Content>
-              {#each genders as gender}
-                <Select.Item value={gender.value}>{gender.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
+              <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
+              <Select.Content>
+                {#each genders as gender}
+                  <Select.Item value={gender.value}>{gender.label}</Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
 
-        <Dialog.Footer class="mt-4">
-          <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
-            Отменить
-          </Dialog.Close>
-          <Button type="submit">Сохранить</Button>
-        </Dialog.Footer>
-      </div>
+          <Dialog.Footer class="mt-4">
+            <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+              Отменить
+            </Dialog.Close>
+            <Button type="submit">Сохранить</Button>
+          </Dialog.Footer>
+        </div>
       </form>
     </Dialog.Content>
   </Dialog.Root>
 </div>
 
 <div class="min-h-[calc(100dvh-12rem)] flex flex-col">
-  {#key currentPage}
-    <Table.Root>
-      <Table.Header>
+  <Table.Root>
+    <Table.Header>
+      <Table.Row>
+        <Table.Head class="w-[100px]">Пациент</Table.Head>
+        <Table.Head>Дата рождения</Table.Head>
+        <Table.Head>Последнее посещение</Table.Head>
+        <Table.Head>Паспорт</Table.Head>
+        <Table.Head>Номер телефона</Table.Head>
+        <Table.Head class="text-end">Пол</Table.Head>
+      </Table.Row>
+    </Table.Header>
+    <Table.Body>
+      {#if patientsResponse === null || !patientsResponse.ok || patientsResponse.data.items.length === 0}
         <Table.Row>
-          <Table.Head class="w-[100px]">Пациент</Table.Head>
-          <Table.Head>Дата рождения</Table.Head>
-          <Table.Head>Последнее посещение</Table.Head>
-          <Table.Head>Паспорт</Table.Head>
-          <Table.Head>Номер телефона</Table.Head>
-          <Table.Head class="text-end">Пол</Table.Head>
+          <Table.Cell colspan="5" class="text-center py-4">Нет данных для отображения</Table.Cell>
         </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {#if !pageData.patientsResponse.data}
+      {:else}
+        {#each patientsResponse.data.items as patient}
           <Table.Row>
-            <Table.Cell colspan=5 class="text-center py-4">Нет данных для отображения</Table.Cell>
+            <Table.Cell class="font-medium">{patient.first_name} {patient.last_name}</Table.Cell>
+            <Table.Cell>
+              {patient.birth_date ?? "Не указано."}
+            </Table.Cell>
+            <Table.Cell>
+              {patient.last_visit ?? "Нет посещений."}
+            </Table.Cell>
+            <Table.Cell>{patient.passport_number}</Table.Cell>
+            <Table.Cell>{patient.phone_number}</Table.Cell>
+            <Table.Cell>{patient.gender}</Table.Cell>
+            <Table.Cell class="text-end">
+              <Sheet.Root>
+                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
+                  >Изменить</Sheet.Trigger
+                >
+                <Sheet.Content>
+                  <Sheet.Header>
+                    <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
+                    <Sheet.Description>
+                      Внесите необходимые изменения в профиль пользователя.
+                    </Sheet.Description>
+                  </Sheet.Header>
+                </Sheet.Content>
+              </Sheet.Root>
+            </Table.Cell>
           </Table.Row>
-        {:else}
-          {#each pageData.patientsResponse.data.items as patient}
-            <Table.Row>
-              <Table.Cell class="font-medium">{patient.first_name} {patient.last_name}</Table.Cell>
-              <Table.Cell>
-                {patient.birth_date ?? "Не указано."}
-              </Table.Cell>
-              <Table.Cell>
-                {patient.last_visit ?? "Нет посещений."}
-              </Table.Cell>
-              <Table.Cell>{patient.passport_number}</Table.Cell>
-              <Table.Cell>{patient.phone_number}</Table.Cell>
-              <Table.Cell>{patient.gender}</Table.Cell>
-              <Table.Cell class="text-end">
-                <Sheet.Root>
-                  <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
-                    >Изменить</Sheet.Trigger
-                  >
-                  <Sheet.Content>
-                    <Sheet.Header>
-                      <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
-                      <Sheet.Description>
-                        Внесите необходимые изменения в профиль пользователя.
-                      </Sheet.Description>
-                    </Sheet.Header>
-                  </Sheet.Content>
-                </Sheet.Root>
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        {/if}
-      </Table.Body>
-    </Table.Root>
-  {/key}
-  {#if pageData.patientsResponse.ok}
+        {/each}
+      {/if}
+    </Table.Body>
+  </Table.Root>
+  {#if patientsResponse && patientsResponse.ok}
     <Pagination.Root count={totalItems} page={currentPage} perPage={pageSize} class="mt-auto">
       {#snippet children({ pages, currentPage })}
         <Pagination.Content>
           <Pagination.Item>
             <Pagination.Previous placeholder="Предыдущая" onclick={() => goPrev()} />
           </Pagination.Item>
-          {#each pages as page (page.key)}
+          {#each pages as 
+          page (page.key)}
             {#if page.type === "ellipsis"}
               <Pagination.Item>
                 <Pagination.Ellipsis />
