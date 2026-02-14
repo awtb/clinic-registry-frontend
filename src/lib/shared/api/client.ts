@@ -3,6 +3,7 @@ import type {ApiError, ApiResult, RequestArgs, RequestWithSchemaArgs} from "$lib
 import {buildAuthClient} from "$lib/shared/api/endpoints/auth"
 import {buildUsersClient} from "$lib/shared/api/endpoints/user";
 import { buildPatientsClient as buildPatientsClient } from "./endpoints/patient";
+import { buildMedicalRecordsClient } from "./endpoints/medical-record";
 
 const getPayload = async (response: Response): Promise<unknown> => {
     const contentType = response.headers.get("content-type") ?? ""
@@ -124,5 +125,6 @@ export const buildApiClient = (fetchFn: typeof fetch, baseUrl: string) => {
         auth: buildAuthClient(httpClient),
         users: buildUsersClient(httpClient),
         patients: buildPatientsClient(httpClient),
+        medicalRecords: buildMedicalRecordsClient(httpClient),
     }
 }
