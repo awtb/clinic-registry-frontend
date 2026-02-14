@@ -74,7 +74,7 @@
 	{#if child}
 		{@render child({ props: mergedProps })}
 	{:else}
-		<button bind:this={ref} {...mergedProps} on:click={(event) => dispatch("click", event)}>
+		<button bind:this={ref} {...mergedProps} onclick={(event) => dispatch("click", event)}>
 			{@render children?.()}
 		</button>
 	{/if}

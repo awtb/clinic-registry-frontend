@@ -80,7 +80,7 @@
               {#each group.items as item}
                 <Sidebar.MenuItem>
                   <Sidebar.MenuButton
-                    on:click={() => goto(item.href)}
+                    onclick={() => goto(item.href)}
                     href={item.disabled ? undefined : item.href}
                     isActive={isActive(item.href)}
                     disabled={item.disabled}
