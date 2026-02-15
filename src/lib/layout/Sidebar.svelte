@@ -55,13 +55,14 @@
       ],
     },
   ]
-  export let footerTitle: string | null = null
-  export let footerSubtitle: string | null = null
+  let footerTitle: string | null = null
+  let footerSubtitle: string | null = null
 
-  $: pathname = $page.url.pathname
+  const pathname = $derived($page.url.pathname)
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/")
+  const isActive = (href: string) => {
+    return href == pathname
+  }
 </script>
 
 <Sidebar.Provider>
@@ -80,7 +81,7 @@
               {#each group.items as item}
                 <Sidebar.MenuItem>
                   <Sidebar.MenuButton
-                    onclick={() => goto(item.href)}
+                    on:click={() => goto(item.href)}
                     href={item.disabled ? undefined : item.href}
                     isActive={isActive(item.href)}
                     disabled={item.disabled}
