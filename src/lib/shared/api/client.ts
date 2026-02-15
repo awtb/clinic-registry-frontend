@@ -47,7 +47,9 @@ const buildSchemaError = (issues: unknown, payload: unknown): ApiError => ({
 })
 
 const buildUrl = (baseUrl: string, path: string, params?: Record<string, string | number>) => {
-    const url = new URL(path, baseUrl)
+    const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`
+    const normalizedPath = path.startsWith("/") ? path.slice(1) : path
+    const url = new URL(normalizedPath, normalizedBaseUrl)
     if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, String(v)))
     return url.toString()
 }

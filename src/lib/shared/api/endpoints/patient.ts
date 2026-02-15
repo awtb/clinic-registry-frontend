@@ -23,7 +23,7 @@ const buildGetAllPatientsMethod = (httpClient: Client) => {
 const buildCreatePatientMethod = (httpClient: Client) => {
     return async (payload: typeof PatientCreateSchema) => {
         return await httpClient.request({
-            path: "patients",
+            path: "patients/",
             method: "POST",
             body: JSON.stringify(payload),
             headers: { "Content-Type": "application/json" },
