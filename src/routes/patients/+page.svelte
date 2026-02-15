@@ -75,6 +75,7 @@
     const r = await apiClient.patients.getAll(page, pageSize)
 
     if (!r.ok) {
+      console.error("Failed to load patients:", r)
       isLoading = false
       return
     }
