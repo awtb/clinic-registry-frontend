@@ -5,6 +5,7 @@ import type { buildHttpClient } from "../client"
 
 type Client = ReturnType<typeof buildHttpClient>
 const UserPageSchema = createPageSchema(UserSchema)
+type UserCreateSchema = z.infer<typeof UserCreateSchema>
 
 const buildProfileMethod = (httpClient: Client) => {
   return async () => {
@@ -31,7 +32,7 @@ const buildGetAllUsersMethod = (httpClient: Client) => {
 }
 
 const buildCreateUserMethod = (httpClient: Client) => {
-  return async (payload: z.infer<typeof UserCreateSchema>) => {
+  return async (payload: UserCreateSchema) => {
     return await httpClient.request({
       path: "users/",
       method: "POST",
