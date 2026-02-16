@@ -2,7 +2,6 @@
   import * as Table from "$lib/components/ui/table"
   import * as Sheet from "$lib/components/ui/sheet"
   import { Button, buttonVariants } from "$lib/components/ui/button"
-  import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Dialog from "$lib/components/ui/dialog/index.js"
   import { replaceState } from "$app/navigation"
@@ -179,7 +178,7 @@
     <Table.Body>
       {#if patientsResponse === null || !patientsResponse.ok || patientsResponse.data.items.length === 0}
         <Table.Row>
-          <Table.Cell colspan="5" class="text-center py-4">Нет данных для отображения</Table.Cell>
+          <Table.Cell colspan={5} class="text-center py-4">Нет данных для отображения</Table.Cell>
         </Table.Row>
       {:else}
         {#each patientsResponse.data.items as patient}
@@ -221,8 +220,7 @@
           <Pagination.Item>
             <Pagination.Previous placeholder="Предыдущая" onclick={() => goPrev()} />
           </Pagination.Item>
-          {#each pages as 
-          page (page.key)}
+          {#each pages as page (page.key)}
             {#if page.type === "ellipsis"}
               <Pagination.Item>
                 <Pagination.Ellipsis />
