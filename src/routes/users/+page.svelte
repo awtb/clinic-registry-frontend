@@ -4,25 +4,26 @@
   import * as Dialog from "$lib/components/ui/dialog"
   import { Label } from "$lib/components/ui/label/index.js"
   import { Input } from "$lib/components/ui/input/index.js"
-  import { buttonVariants } from "$lib/components/ui/button"
+  import { Button, buttonVariants } from "$lib/components/ui/button"
   import { Badge } from "$lib/components/ui/badge"
-  import { Button } from "$lib/components/ui/button"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Select from "$lib/components/ui/select/index.js"
   import { UserCreateSchema } from "$lib/schemas/user"
-
-  import { goto } from "$app/navigation"
+  import { replaceState } from "$app/navigation"
   import { getContext } from "svelte"
-  import {type ApiClient, apiClientKey} from "$lib/shared/api/context";
+  import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
+  import type { PageData } from "./$types"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
 
-  let { data } = $props()
-  let pageData = $state(data)
-  let currentPage = $state(data.usersResponse?.ok ? data.usersResponse.data.page : 1)
-  let totalPages = $state(data.usersResponse?.ok ? data.usersResponse.data.total_pages : 1)
-  let pageSize = $state(data.usersResponse?.ok ? data.usersResponse.data.page_size : 10)
-  let totalItems = $state(data.usersResponse?.ok ? data.usersResponse.data.total_items : 0)
+  const props = $props<{ data: PageData }>()
+  let usersResponse = $state(props.data.usersResponse)
+
+  let currentPage = $derived(usersResponse?.ok ? usersResponse.data.page : 1)
+  const totalPages = $derived(usersResponse?.ok ? usersResponse.data.total_pages : 1)
+  const pageSize = $derived(usersResponse?.ok ? usersResponse.data.page_size : 10)
+  const totalItems = $derived(usersResponse?.ok ? usersResponse.data.total_items : 0)
+
   let isLoading = $state(false)
   let roleValue = $state("")
 
@@ -35,14 +36,11 @@
     roles.find((role) => role.value === roleValue)?.label ?? "Выберите роль"
   )
 
-  const updateQueryParams = async (page: number, size: number) => {
-    const params = new URLSearchParams(window.location.search)
-    params.set("page", String(page))
-    params.set("page_size", String(size))
-    await goto(`?${params.toString()}`, {
-      replaceState: true,
-      noScroll: true,
-    })
+  const updateQueryParams = (nextPage: number, nextSize: number) => {
+    const params = new URLSearchParams()
+    params.set("page", String(nextPage))
+    params.set("page_size", String(nextSize))
+    replaceState(`?${params.toString()}`, {})
   }
 
   async function createUser(event: SubmitEvent) {
@@ -68,8 +66,6 @@
 
     if (response.ok) {
       await loadUsersPage(1)
-      form.reset()
-      roleValue = ""
     } else {
       console.error("Failed to create user:", response)
     }
@@ -79,18 +75,16 @@
     if (isLoading) return
     isLoading = true
 
-    await updateQueryParams(page, pageSize)
+    const r = await apiClient.users.getAll(page, pageSize)
 
-    const usersResponse = await apiClient.users.getAll(page, pageSize)
-
-    if (!usersResponse.ok) {
+    if (!r.ok) {
+      console.error("Failed to load users:", r.error)
       isLoading = false
       return
     }
 
-    pageData = { ...pageData, usersResponse: usersResponse }
-    currentPage = usersResponse.data.page
-    totalPages = usersResponse.data.total_pages
+    usersResponse = { ok: true, status: r.status, data: r.data }
+    updateQueryParams(page, pageSize)
 
     isLoading = false
   }
@@ -157,77 +151,61 @@
             </Select.Root>
           </div>
 
-          <!-- <div class="grid gap-3">
-            <Label for="gender">Пол</Label>
-            <Select.Root type="single" bind:value>
-            <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
-            <Select.Content>
-              {#each genders as gender}
-                <Select.Item value={gender.value}>{gender.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div> -->
-
-        <Dialog.Footer class="mt-4">
-          <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
-            Отменить
-          </Dialog.Close>
-          <Button type="submit">Сохранить</Button>
-        </Dialog.Footer>
-      </div>
+          <Dialog.Footer class="mt-4">
+            <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+              Отменить
+            </Dialog.Close>
+            <Button type="submit">Сохранить</Button>
+          </Dialog.Footer>
+        </div>
       </form>
     </Dialog.Content>
   </Dialog.Root>
 </div>
 
 <div class="min-h-[calc(100dvh-8rem)] flex flex-col">
-  {#key currentPage}
-    <Table.Root>
-      <Table.Header>
+  <Table.Root>
+    <Table.Header>
+      <Table.Row>
+        <Table.Head class="w-[100px]">Пользователь</Table.Head>
+        <Table.Head>Роль</Table.Head>
+        <Table.Head>Кол-во записей</Table.Head>
+        <Table.Head>Статус</Table.Head>
+      </Table.Row>
+    </Table.Header>
+    <Table.Body>
+      {#if usersResponse === null || !usersResponse.ok || usersResponse.data.items.length === 0}
         <Table.Row>
-          <Table.Head class="w-[100px]">Пользователь</Table.Head>
-          <Table.Head>Роль</Table.Head>
-          <Table.Head>Кол-во записей</Table.Head>
-          <Table.Head>Статус</Table.Head>
+          <Table.Cell colspan={5} class="text-center py-4">Нет данных для отображения</Table.Cell>
         </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {#if !pageData.usersResponse.data}
+      {:else}
+        {#each usersResponse.data.items as user}
           <Table.Row>
-            <Table.Cell colspan=5 class="text-center py-4">Нет данных для отображения</Table.Cell>
+            <Table.Cell class="font-medium">{user.first_name} {user.last_name}</Table.Cell>
+            <Table.Cell>
+              <Badge variant="secondary">{user.role}</Badge>
+            </Table.Cell>
+            <Table.Cell>15</Table.Cell>
+            <Table.Cell>ACTIVE</Table.Cell>
+            <Table.Cell class="text-end">
+              <Sheet.Root>
+                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Изменить</Sheet.Trigger>
+                <Sheet.Content>
+                  <Sheet.Header>
+                    <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
+                    <Sheet.Description>
+                      Внесите необходимые изменения в профиль пользователя.
+                    </Sheet.Description>
+                  </Sheet.Header>
+                </Sheet.Content>
+              </Sheet.Root>
+            </Table.Cell>
           </Table.Row>
-        {:else}
-          {#each pageData.usersResponse.data.items as user}
-            <Table.Row>
-              <Table.Cell class="font-medium">{user.first_name} {user.last_name}</Table.Cell>
-              <Table.Cell>
-                <Badge variant="secondary">{user.role}</Badge>
-              </Table.Cell>
-              <Table.Cell>15</Table.Cell>
-              <Table.Cell>ACTIVE</Table.Cell>
-              <Table.Cell class="text-end">
-                <Sheet.Root>
-                  <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
-                    >Изменить</Sheet.Trigger
-                  >
-                  <Sheet.Content>
-                    <Sheet.Header>
-                      <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
-                      <Sheet.Description>
-                        Внесите необходимые изменения в профиль пользователя.
-                      </Sheet.Description>
-                    </Sheet.Header>
-                  </Sheet.Content>
-                </Sheet.Root>
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        {/if}
-      </Table.Body>
-    </Table.Root>
-  {/key}
-  {#if pageData.usersResponse.ok}
+        {/each}
+      {/if}
+    </Table.Body>
+  </Table.Root>
+  {#if usersResponse && usersResponse.ok}
     <Pagination.Root count={totalItems} page={currentPage} perPage={pageSize} class="mt-auto">
       {#snippet children({ pages, currentPage })}
         <Pagination.Content>
