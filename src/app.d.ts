@@ -4,7 +4,10 @@ import type {buildApiClient} from "$lib/shared/api/client";
 
 declare global {
   namespace App {
-    // interface Error {}
+    interface Error {
+      code: number
+      message: string
+    }
     interface Locals {
       apiClient: ReturnType<typeof buildApiClient>
     }
