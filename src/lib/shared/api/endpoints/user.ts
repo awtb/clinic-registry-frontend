@@ -33,7 +33,7 @@ const buildGetAllUsersMethod = (client: Client) => {
 }
 
 const buildCreateUserMethod = (client: Client) => {
-  return async (payload: typeof UserCreateSchema) => {
+  return async (payload: z.infer<typeof UserCreateSchema>) => {
     return await client.request({
       path: "users",
       method: "POST",
