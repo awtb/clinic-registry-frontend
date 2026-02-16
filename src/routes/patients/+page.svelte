@@ -9,7 +9,7 @@
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import { Input } from "$lib/components/ui/input/index.js"
   import { Label } from "$lib/components/ui/label/index.js"
-  import { PatientCreateSchema } from "$lib/schemas/patient"
+  import { PatientCreateSchema, PatientUpdateSchema } from "$lib/schemas/patient"
   import * as Select from "$lib/components/ui/select/index.js"
   import type { PageData } from "./$types"
 
@@ -35,6 +35,39 @@
     params.set("page", String(nextPage))
     params.set("page_size", String(nextSize))
     replaceState(`?${params.toString()}`, {})
+  }
+
+  async function updatePatient(event: SubmitEvent, patientId: string) {
+    event.preventDefault()
+    const form = event.target as HTMLFormElement
+
+    const formData = new FormData(form)
+
+    const newBirthDate = formData.get("birth_date") ? new Date(formData.get("birth_date") as string) : undefined
+    const newGender = value.length > 0 ? value : undefined 
+
+    const updatePayload = PatientUpdateSchema.safeParse({
+      first_name: formData.get("first_name") as string,
+      last_name: formData.get("last_name") as string,
+      birth_date: newBirthDate,
+      phone_number: formData.get("phone") as string,
+      passport_number: formData.get("passport") as string,
+      gender: newGender,
+    })
+
+    if (!updatePayload.success) {
+      console.error("Parsing err", updatePayload.error)
+      return
+    }
+
+    const updateResponse = await apiClient.patients.update(
+      patientId, 
+      updatePayload.data, 
+    )
+
+    if (updateResponse.ok) {
+      await loadPatientsPage(currentPage)
+    }
   }
 
   async function createPatient(event: SubmitEvent) {
@@ -68,6 +101,7 @@
   }
 
   async function loadPatientsPage(page: number) {
+    console.log(patientsResponse)
     if (isLoading) return
     isLoading = true
 
@@ -198,13 +232,82 @@
                 <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
                   >Изменить</Sheet.Trigger
                 >
-                <Sheet.Content>
+                <Sheet.Content class="sm:max-w-[425px]">
                   <Sheet.Header>
                     <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
                     <Sheet.Description>
                       Внесите необходимые изменения в профиль пользователя.
                     </Sheet.Description>
                   </Sheet.Header>
+
+                  <form
+                    onsubmit={(e) => updatePatient(e, patient.id)}
+                    class="flex flex-col w-full h-full p-4"
+                  >
+                    <div class="grid gap-4">
+                      <div class="grid gap-3">
+                        <Label for="first-name">Имя</Label>
+                        <Input
+                          id="first-name"
+                          name="first_name"
+                          defaultValue={patient.first_name}
+                        />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="last-name">Фамилия</Label>
+                        <Input id="last-name" name="last_name" defaultValue={patient.last_name} />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="birth_date">Дата рождения</Label>
+                        <Input
+                          id="birth_date"
+                          name="birth_date"
+                          type="date"
+                          defaultValue={patient.birth_date}
+                        />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="phone">Номер телефона</Label>
+                        <Input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          defaultValue={patient.phone_number}
+                        />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="passport">Паспорт</Label>
+                        <Input
+                          id="passport"
+                          name="passport"
+                          defaultValue={patient.passport_number}
+                        />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="gender">Пол</Label>
+                        <Select.Root type="single" bind:value>
+                          <Select.Trigger class="w-full">{triggerGender}</Select.Trigger>
+                          <Select.Content>
+                            {#each genders as gender}
+                              <Select.Item value={gender.value}>{gender.label}</Select.Item>
+                            {/each}
+                          </Select.Content>
+                        </Select.Root>
+                      </div>
+
+                      <Dialog.Footer class="mt-4">
+                        <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+                          Отменить
+                        </Dialog.Close>
+                        <Button type="submit">Сохранить</Button>
+                      </Dialog.Footer>
+                    </div>
+                  </form>
                 </Sheet.Content>
               </Sheet.Root>
             </Table.Cell>
