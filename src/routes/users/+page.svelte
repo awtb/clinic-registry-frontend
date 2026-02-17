@@ -8,7 +8,7 @@
   import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Select from "$lib/components/ui/select/index.js"
-  import { UserCreateSchema } from "$lib/schemas/user"
+  import { UserCreateSchema, UserUpdateSchema } from "$lib/schemas/user"
   import { replaceState } from "$app/navigation"
   import { getContext } from "svelte"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
@@ -29,11 +29,11 @@
 
   const roles = [
     { label: "Админ", value: "admin" },
-    { label: "Врач", value: "doctor" },
+    { label: "Пользователь (Врач)", value: "user" },
   ]
 
   const triggerRole = $derived(
-    roles.find((role) => role.value === roleValue)?.label ?? "Выберите роль"
+    roles.find((role) => role.value === roleValue)?.label ?? "Выберите роль",
   )
 
   const updateQueryParams = (nextPage: number, nextSize: number) => {
@@ -68,6 +68,39 @@
       await loadUsersPage(1)
     } else {
       console.error("Failed to create user:", response)
+    }
+  }
+
+  async function updateUser(event: SubmitEvent, userId: string) {
+    event.preventDefault()
+    const form = event.target as HTMLFormElement
+    const formData = new FormData(form)
+    const newRole = roleValue.length > 0 ? roleValue : undefined
+    const newUsername =
+      formData.get("username") !== null && formData.get("username").length > 0
+        ? (formData.get("username") as string)
+        : undefined
+
+    const updatePayload = UserUpdateSchema.safeParse({
+      first_name: formData.get("first_name") as string,
+      last_name: formData.get("last_name") as string,
+      username: newUsername,
+      email: formData.get("email") as string,
+      role: newRole,
+      password: (formData.get("password") as string) || undefined,
+    })
+
+    if (!updatePayload.success) {
+      console.error("Validation failed:", updatePayload.error)
+      return
+    }
+
+    const response = await apiClient.users.update(userId, updatePayload.data)
+
+    if (response.ok) {
+      await loadUsersPage(currentPage)
+    } else {
+      console.error("Failed to update user:", response)
     }
   }
 
@@ -189,14 +222,69 @@
             <Table.Cell>ACTIVE</Table.Cell>
             <Table.Cell class="text-end">
               <Sheet.Root>
-                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Изменить</Sheet.Trigger>
-                <Sheet.Content>
+                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
+                  >Изменить</Sheet.Trigger
+                >
+                <Sheet.Content class="sm:max-w-[425px]">
                   <Sheet.Header>
                     <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
                     <Sheet.Description>
                       Внесите необходимые изменения в профиль пользователя.
                     </Sheet.Description>
                   </Sheet.Header>
+
+                  <form
+                    onsubmit={(e) => updateUser(e, user.id)}
+                    class="flex flex-col w-full h-full p-4"
+                  >
+                    <div class="grid gap-4">
+                      <div class="grid gap-3">
+                        <Label for="first-name">Имя</Label>
+                        <Input id="first-name" name="first_name" defaultValue={user.first_name} />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="last-name">Фамилия</Label>
+                        <Input id="last-name" name="last_name" defaultValue={user.last_name} />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="username">Имя пользователя</Label>
+                        <Input id="username" name="username" defaultValue={user.username} />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="email">Email</Label>
+                        <Input id="email" name="email" type="email" defaultValue={user.email} />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="password">Новый пароль</Label>
+                        <Input id="password" name="password" type="password" />
+                      </div>
+
+                      <div class="grid gap-3">
+                        <Label for="role">Роль</Label>
+                        <Select.Root type="single" bind:value={roleValue}>
+                          <Select.Trigger id="role" class="w-full">
+                            {triggerRole}
+                          </Select.Trigger>
+                          <Select.Content>
+                            {#each roles as role}
+                              <Select.Item value={role.value}>{role.label}</Select.Item>
+                            {/each}
+                          </Select.Content>
+                        </Select.Root>
+                      </div>
+
+                      <Dialog.Footer class="mt-4">
+                        <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+                          Отменить
+                        </Dialog.Close>
+                        <Button type="submit">Сохранить</Button>
+                      </Dialog.Footer>
+                    </div>
+                  </form>
                 </Sheet.Content>
               </Sheet.Root>
             </Table.Cell>

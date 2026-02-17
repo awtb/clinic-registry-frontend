@@ -1,11 +1,12 @@
 import { createPageSchema } from "$lib/schemas/base"
-import { UserCreateSchema, UserSchema } from "$lib/schemas/user"
+import { UserCreateSchema, UserSchema, UserUpdateSchema } from "$lib/schemas/user"
 import type { z } from "zod"
 import type { buildHttpClient } from "../client"
 
 type Client = ReturnType<typeof buildHttpClient>
 const UserPageSchema = createPageSchema(UserSchema)
-type UserCreateSchema = z.infer<typeof UserCreateSchema>
+type UserCreatePayload = z.infer<typeof UserCreateSchema>
+type UserUpdatePayload = z.infer<typeof UserUpdateSchema>
 
 const buildProfileMethod = (httpClient: Client) => {
   return async () => {
@@ -32,10 +33,22 @@ const buildGetAllUsersMethod = (httpClient: Client) => {
 }
 
 const buildCreateUserMethod = (httpClient: Client) => {
-  return async (payload: UserCreateSchema) => {
+  return async (payload: UserCreatePayload) => {
     return await httpClient.request({
       path: "users/",
       method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+      schema: UserSchema,
+    })
+  }
+}
+
+const buildUpdateUserMethod = (httpClient: Client) => {
+  return async (userId: string, payload: UserUpdatePayload) => {
+    return await httpClient.request({
+      path: `users/${userId}`,
+      method: "PATCH",
       body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json" },
       schema: UserSchema,
@@ -48,5 +61,6 @@ export const buildUsersClient = (httpClient: ReturnType<typeof buildHttpClient>)
     me: buildProfileMethod(httpClient),
     getAll: buildGetAllUsersMethod(httpClient),
     create: buildCreateUserMethod(httpClient),
+    update: buildUpdateUserMethod(httpClient),
   }
 }
