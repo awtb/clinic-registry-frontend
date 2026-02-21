@@ -13,6 +13,7 @@
   import { getContext } from "svelte"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import type { PageData } from "./$types"
+    import { toast } from "svelte-sonner"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
 
@@ -26,6 +27,8 @@
 
   let isLoading = $state(false)
   let roleValue = $state("")
+  let isUpdatingUser = $state<Record<string, boolean>>({})
+  let editFormErrors = $state<Record<string, string>>({})
 
   const roles = [
     { label: "Админ", value: "admin" },
@@ -41,6 +44,10 @@
     params.set("page", String(nextPage))
     params.set("page_size", String(nextSize))
     replaceState(`?${params.toString()}`, {})
+  }
+
+  const setEditFormError = (userId: string, message: string) => {
+    editFormErrors = { ...editFormErrors, [userId]: message }
   }
 
   async function createUser(event: SubmitEvent) {
@@ -74,12 +81,12 @@
   async function updateUser(event: SubmitEvent, userId: string) {
     event.preventDefault()
     const form = event.target as HTMLFormElement
+    setEditFormError(userId, "")
     const formData = new FormData(form)
     const newRole = roleValue.length > 0 ? roleValue : undefined
+    const usernameRaw = formData.get("username")
     const newUsername =
-      formData.get("username") !== null && formData.get("username").length > 0
-        ? (formData.get("username") as string)
-        : undefined
+      typeof usernameRaw === "string" && usernameRaw.length > 0 ? usernameRaw : undefined
 
     const updatePayload = UserUpdateSchema.safeParse({
       first_name: formData.get("first_name") as string,
@@ -91,17 +98,20 @@
     })
 
     if (!updatePayload.success) {
-      console.error("Validation failed:", updatePayload.error)
+      setEditFormError(userId, updatePayload.error.issues[0]?.message ?? "Проверьте поля формы.")
       return
     }
 
+    isUpdatingUser = { ...isUpdatingUser, [userId]: true }
     const response = await apiClient.users.update(userId, updatePayload.data)
 
     if (response.ok) {
+      toast.success("Профиль пользователя успешно обновлен.")
       await loadUsersPage(currentPage)
     } else {
-      console.error("Failed to update user:", response)
+      setEditFormError(userId, response.error.message || "Не удалось обновить пользователя.")
     }
+    isUpdatingUser = { ...isUpdatingUser, [userId]: false }
   }
 
   async function loadUsersPage(page: number) {
@@ -277,11 +287,17 @@
                         </Select.Root>
                       </div>
 
+                      {#if editFormErrors[user.id]}
+                        <p class="text-sm text-destructive">{editFormErrors[user.id]}</p>
+                      {/if}
+
                       <Dialog.Footer class="mt-4">
                         <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
                           Отменить
                         </Dialog.Close>
-                        <Button type="submit">Сохранить</Button>
+                        <Button type="submit" disabled={isUpdatingUser[user.id]}>
+                          {isUpdatingUser[user.id] ? "Сохранение..." : "Сохранить"}
+                        </Button>
                       </Dialog.Footer>
                     </div>
                   </form>
