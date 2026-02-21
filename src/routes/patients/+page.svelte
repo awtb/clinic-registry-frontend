@@ -29,6 +29,8 @@
   const totalItems = $derived(patientsResponse?.ok ? patientsResponse.data.total_items : 0)
 
   let isLoading = $state(false)
+  let isUpdatingPatient = $state<Record<string, boolean>>({})
+  let editFormErrors = $state<Record<string, string>>({})
 
   const updateQueryParams = (nextPage: number, nextSize: number) => {
     const params = new URLSearchParams()
@@ -37,14 +39,25 @@
     replaceState(`?${params.toString()}`, {})
   }
 
+  const setEditFormError = (patientId: string, message: string) => {
+    editFormErrors = { ...editFormErrors, [patientId]: message }
+  }
+
+  const clearEditErrors = (patientId: string) => {
+    setEditFormError(patientId, "")
+  }
+
   async function updatePatient(event: SubmitEvent, patientId: string) {
     event.preventDefault()
     const form = event.target as HTMLFormElement
+    clearEditErrors(patientId)
 
     const formData = new FormData(form)
 
-    const newBirthDate = formData.get("birth_date") ? new Date(formData.get("birth_date") as string) : undefined
-    const newGender = value.length > 0 ? value : undefined 
+    const newBirthDate = formData.get("birth_date")
+      ? new Date(formData.get("birth_date") as string)
+      : undefined
+    const newGender = value.length > 0 ? value : undefined
 
     const updatePayload = PatientUpdateSchema.safeParse({
       first_name: formData.get("first_name") as string,
@@ -56,18 +69,20 @@
     })
 
     if (!updatePayload.success) {
-      console.error("Parsing err", updatePayload.error)
+      setEditFormError(patientId, updatePayload.error.issues[0]?.message ?? "Проверьте поля формы.")
       return
     }
 
-    const updateResponse = await apiClient.patients.update(
-      patientId, 
-      updatePayload.data, 
-    )
+    isUpdatingPatient = { ...isUpdatingPatient, [patientId]: true }
+    const updateResponse = await apiClient.patients.update(patientId, updatePayload.data)
 
     if (updateResponse.ok) {
       await loadPatientsPage(currentPage)
+    } else {
+      setEditFormError(patientId, updateResponse.error.message || "Не удалось обновить пациента.")
     }
+
+    isUpdatingPatient = { ...isUpdatingPatient, [patientId]: false }
   }
 
   async function createPatient(event: SubmitEvent) {
@@ -101,7 +116,6 @@
   }
 
   async function loadPatientsPage(page: number) {
-    console.log(patientsResponse)
     if (isLoading) return
     isLoading = true
 
@@ -300,11 +314,17 @@
                         </Select.Root>
                       </div>
 
+                      {#if editFormErrors[patient.id]}
+                        <p class="text-sm text-destructive">{editFormErrors[patient.id]}</p>
+                      {/if}
+
                       <Dialog.Footer class="mt-4">
                         <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
                           Отменить
                         </Dialog.Close>
-                        <Button type="submit">Сохранить</Button>
+                        <Button type="submit" disabled={isUpdatingPatient[patient.id]}>
+                          {isUpdatingPatient[patient.id] ? "Сохранение..." : "Сохранить"}
+                        </Button>
                       </Dialog.Footer>
                     </div>
                   </form>

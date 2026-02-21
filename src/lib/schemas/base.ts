@@ -17,3 +17,8 @@ export type Page<T> = {
   items: T[]
 }
 
+export const ErrorSchema = z.object({
+  detail: z.object({
+    message: z.string()
+  }),
+})
