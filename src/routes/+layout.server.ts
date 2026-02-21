@@ -1,41 +1,36 @@
-import { redirect } from '@sveltejs/kit'
-import type { LayoutServerLoad } from './$types'
+import { error, redirect } from "@sveltejs/kit"
+import type { LayoutServerLoad } from "./$types"
 
-type CurrentUser = {
-    id: string
-    first_name: string
-    last_name: string
-    email: string
-    role: string
-}
-
-const guestUser: CurrentUser = {
-    role: 'guest',
-    first_name: 'Войти',
-    last_name: 'Guest',
-    id: '$1',
-    email: 'guest@clinica.local'
+const guestUser = {
+  first_name: "Guest",
+  last_name: "User",
+  username: "guest",
+  role: "GUEST",
+  email: "guest@guest.clinic",
 }
 
 export const load: LayoutServerLoad = async ({ url, locals }) => {
-    const currentUserResponse = await locals.apiClient.users.me()
-    let currentUser: CurrentUser
+  const currentUserResponse = await locals.apiClient.users.me()
 
-    if (url.pathname == '/login') {
-        if (currentUserResponse.ok) {
-            throw redirect(302, '/')
-        }
-    }
+  if (url.pathname === "/login" && currentUserResponse.ok) {
+    throw redirect(302, "/")
+  }
 
-    if (currentUserResponse.ok) {
-        currentUser = currentUserResponse.data
-    } else {
-        currentUser = guestUser
-    }
-    
-
+  if (url.pathname === "/login" && !currentUserResponse.ok) {
     return {
-        currentUser: currentUser,
+      currentUser: guestUser,
     }
+  }
 
+  if (!currentUserResponse.ok) {
+    if (currentUserResponse.status === 401 || currentUserResponse.status === 403) {
+      throw redirect(302, "/login")
+    }
+    throw error(503, {
+      message: "Backend problem",
+      code: currentUserResponse.status,
+    })
+  }
+
+  return { currentUser: currentUserResponse.data }
 }
