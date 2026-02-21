@@ -6,16 +6,15 @@
   import { buttonVariants } from "$lib/components/ui/button"
   import { CircleX, Home, ArrowLeft, RefreshCcw } from "lucide-svelte"
 
-  const props = $props<{ status: number; error: App.Error; data?: unknown }>()
+  const { status, error: err } = $props<{ status: number; error: App.Error; data?: unknown }>()
 
-  const status = $derived($page.status ?? 500)
-  const err = $derived($page.error)
-
-  const isNotFound = status === 404
-  const title = isNotFound ? "Страница не найдена" : "Произошла ошибка"
-  const description = isNotFound
-    ? "Похоже, ссылка устарела или страница была перемещена."
-    : err?.message || "Во время обработки запроса произошла непредвиденная ошибка."
+  const isNotFound = $derived(status === 404)
+  const title = $derived(isNotFound ? "Страница не найдена" : "Произошла ошибка")
+  const description = $derived(
+    isNotFound
+      ? "Похоже, ссылка устарела или страница была перемещена."
+      : err?.message || "Во время обработки запроса произошла непредвиденная ошибка."
+  )
 
   const goHome = () => goto(resolve("/"))
 
