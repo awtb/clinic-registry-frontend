@@ -4,12 +4,14 @@
   import { Button } from '$lib/components/ui/button'
   import { Badge } from '$lib/components/ui/badge'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-  import { ClipboardPlus, Search, User } from 'lucide-svelte'
+  import { ClipboardPlus, Moon, Search, Sun, User } from 'lucide-svelte'
   import Sidebar from '$lib/layout/Sidebar.svelte'
   import {setContext} from "svelte";
   import {buildApiClient} from "$lib/shared/api/client";
   import {apiClientKey} from "$lib/shared/api/context";
-    import { browser } from '$app/environment'
+  import { browser } from '$app/environment'
+  import { Toaster } from '$lib/components/ui/sonner/index.js'
+  import { ModeWatcher, mode, toggleMode } from "mode-watcher"
 
   let { data, children } = $props()
 
@@ -25,6 +27,10 @@
   <link rel="icon" href={favicon} />
 </svelte:head>
 
+<ModeWatcher />
+<Toaster position="bottom-right"/>
+
+
 <div class="h-dvh flex flex-col overflow-hidden">
   <header class="h-16 shrink-0 z-50 border-b bg-background/80 backdrop-blur">
     <div class="h-16 w-full flex items-center gap-4 px-6">
@@ -38,6 +44,14 @@
       </div>
 
       <div class="ml-auto flex items-center gap-2">
+        <Button variant="ghost" size="icon" aria-label="Сменить тему" onclick={toggleMode}>
+          {#if mode.current === "dark"}
+            <Sun class="h-5 w-5" />
+          {:else}
+            <Moon class="h-5 w-5" />
+          {/if}
+        </Button>
+
         <Button variant="ghost" size="icon" aria-label="Поиск">
           <Search class="h-5 w-5" />
         </Button>
