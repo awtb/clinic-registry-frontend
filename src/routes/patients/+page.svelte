@@ -12,6 +12,7 @@
   import { PatientCreateSchema, PatientUpdateSchema } from "$lib/schemas/patient"
   import * as Select from "$lib/components/ui/select/index.js"
   import type { PageData } from "./$types"
+  import { toast } from "svelte-sonner"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
 
@@ -77,6 +78,7 @@
     const updateResponse = await apiClient.patients.update(patientId, updatePayload.data)
 
     if (updateResponse.ok) {
+      toast.success("Данные о пациенте успешно обновлены.")
       await loadPatientsPage(currentPage)
     } else {
       setEditFormError(patientId, updateResponse.error.message || "Не удалось обновить пациента.")
