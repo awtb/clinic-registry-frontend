@@ -19,14 +19,20 @@ const buildProfileMethod = (httpClient: Client) => {
 }
 
 const buildGetAllUsersMethod = (httpClient: Client) => {
-  return async (page: number, page_size: number) => {
+  return async (page: number, page_size: number, search_query?: string) => {
+    const params: Record<string, string | number> = {
+      page,
+      page_size,
+    }
+
+    if (search_query && search_query.trim().length > 0) {
+      params.search_query = search_query.trim()
+    }
+
     return await httpClient.request({
       path: "users/",
       method: "GET",
-      params: {
-        page,
-        page_size,
-      },
+      params,
       schema: UserPageSchema,
     })
   }
