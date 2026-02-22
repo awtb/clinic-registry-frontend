@@ -31,4 +31,4 @@ export const PatientUpdateSchema = z.object({
   passport_number: z.string().optional(),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
   notes: z.string().optional(),
-});
+})

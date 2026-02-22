@@ -16,7 +16,7 @@ const parsePositiveInt = (value: string | null, fallback: number) => {
 
 export const getPaginationParams = (
   url: URL,
-  defaults: PaginationDefaults = { page: 1, pageSize: 10 }
+  defaults: PaginationDefaults = { page: 1, pageSize: 10 },
 ): PaginationParams => {
   const page = parsePositiveInt(url.searchParams.get("page"), defaults.page)
   const pageSize = parsePositiveInt(url.searchParams.get("page_size"), defaults.pageSize)

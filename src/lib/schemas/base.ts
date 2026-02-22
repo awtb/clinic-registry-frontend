@@ -19,6 +19,6 @@ export type Page<T> = {
 
 export const ErrorSchema = z.object({
   detail: z.object({
-    message: z.string()
+    message: z.string(),
   }),
 })

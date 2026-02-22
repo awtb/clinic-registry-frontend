@@ -23,7 +23,9 @@ const filterHeaders = (headers: Headers) => {
 }
 
 const buildUpstreamUrl = (sourceUrl: URL, apiPath: string) => {
-  const normalizedBaseUrl = config.apiBaseUrl.endsWith("/") ? config.apiBaseUrl : `${config.apiBaseUrl}/`
+  const normalizedBaseUrl = config.apiBaseUrl.endsWith("/")
+    ? config.apiBaseUrl
+    : `${config.apiBaseUrl}/`
   const normalizedPath = apiPath.replace(/^\/+/, "")
   const upstreamUrl = new URL(normalizedPath, normalizedBaseUrl)
   sourceUrl.searchParams.forEach((v, k) => upstreamUrl.searchParams.append(k, v))
@@ -48,7 +50,10 @@ export const proxyRequest = async (event: RequestEvent, apiPath: string) => {
 
     // Some backends (e.g. FastAPI) 307/308 redirect /resource -> /resource/.
     // Follow this internally to keep browser traffic on /api/*.
-    if ((upstreamResponse.status === 307 || upstreamResponse.status === 308) && upstreamResponse.headers.has("location")) {
+    if (
+      (upstreamResponse.status === 307 || upstreamResponse.status === 308) &&
+      upstreamResponse.headers.has("location")
+    ) {
       const location = upstreamResponse.headers.get("location")
       if (location) {
         const redirectedUrl = new URL(location, upstreamUrl)

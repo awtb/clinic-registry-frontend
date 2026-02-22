@@ -240,7 +240,8 @@
   </div>
 
   <div class="flex-1 min-h-0 flex flex-col">
-    <Table.Root>
+    <div class="flex-1 min-h-0 overflow-auto">
+      <Table.Root>
       <Table.Header>
         <Table.Row>
           <Table.Head class="w-[100px] whitespace-normal">Пользователь</Table.Head>
@@ -357,9 +358,15 @@
           {/each}
         {/if}
       </Table.Body>
-    </Table.Root>
+      </Table.Root>
+    </div>
     {#if usersResponse && usersResponse.ok}
-      <Pagination.Root count={totalItems} page={currentPage} perPage={pageSize} class="mt-4">
+      <Pagination.Root
+        count={totalItems}
+        page={currentPage}
+        perPage={pageSize}
+        class="mt-4 shrink-0"
+      >
         {#snippet children({ pages, currentPage })}
           <Pagination.Content>
             <Pagination.Item>
