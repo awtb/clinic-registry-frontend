@@ -23,6 +23,7 @@
 
   const props = $props<{ data: PageData }>()
   let patientsResponse = $state(props.data.patientsResponse)
+  let searchQuery = $state(props.data.searchQuery ?? "")
 
   let currentPage = $derived(patientsResponse?.ok ? patientsResponse.data.page : 1)
   const totalPages = $derived(patientsResponse?.ok ? patientsResponse.data.total_pages : 1)
@@ -33,11 +34,18 @@
   let isUpdatingPatient = $state<Record<string, boolean>>({})
   let editFormErrors = $state<Record<string, string>>({})
 
-  const updateQueryParams = (nextPage: number, nextSize: number) => {
+  const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
     const params = new URLSearchParams()
     params.set("page", String(nextPage))
     params.set("page_size", String(nextSize))
+    if (nextSearchQuery.trim().length > 0) params.set("search_query", nextSearchQuery.trim())
     replaceState(`?${params.toString()}`, {})
+  }
+
+  const getGenderName = (genderValue: string | null) => {
+    if (!genderValue) return "Не указан"
+    const gender = genders.find(g => g.value === genderValue)
+    return gender ? gender.label : "Не указан"
   }
 
   const setEditFormError = (patientId: string, message: string) => {
@@ -117,20 +125,23 @@
     }
   }
 
+  let requestSeq = 0
   async function loadPatientsPage(page: number) {
-    if (isLoading) return
+    const seq = ++requestSeq
     isLoading = true
 
-    const r = await apiClient.patients.getAll(page, pageSize)
+    const r = await apiClient.patients.getAll(page, pageSize, searchQuery)
 
     if (!r.ok) {
       console.error("Failed to load patients:", r.error)
-      isLoading = false
+      if (seq === requestSeq) isLoading = false
       return
     }
 
+    if (seq !== requestSeq) return
+
     patientsResponse = { ok: true, status: r.status, data: r.data }
-    updateQueryParams(page, pageSize)
+    updateQueryParams(page, pageSize, searchQuery)
 
     isLoading = false
   }
@@ -145,228 +156,273 @@
     loadPatientsPage(currentPage + 1)
   }
 
+  let searchDebounce: ReturnType<typeof setTimeout> | null = null
+  const scheduleSearch = () => {
+    if (searchDebounce) clearTimeout(searchDebounce)
+    searchDebounce = setTimeout(() => loadPatientsPage(1), 300)
+  }
+
+  const clearSearch = () => {
+    searchQuery = ""
+    loadPatientsPage(1)
+  }
+
   let value = $state("")
   const triggerGender = $derived(genders.find((g) => g.value === value)?.label ?? "Выберите пол")
 </script>
 
-<div class="flex items-center justify-between mb-4">
-  <h1 class="text-2xl font-bold mb-4">Пациенты</h1>
-  <Dialog.Root>
-    <Dialog.Trigger type="button" class={buttonVariants({ variant: "outline" })}>
-      Добавить пациента
-    </Dialog.Trigger>
+<div class="h-full min-h-0 flex flex-col">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold mb-4">Пациенты</h1>
+    <Dialog.Root>
+      <Dialog.Trigger type="button" class={buttonVariants({ variant: "outline" })}>
+        Добавить пациента
+      </Dialog.Trigger>
 
-    <Dialog.Content class="sm:max-w-[425px]">
-      <form method="POST" onsubmit={createPatient}>
-        <Dialog.Header>
-          <Dialog.Title>Добавление нового пациента</Dialog.Title>
-          <Dialog.Description>Внесите необходимые данные нового пациента.</Dialog.Description>
-        </Dialog.Header>
+      <Dialog.Content class="sm:max-w-[425px]">
+        <form method="POST" onsubmit={createPatient}>
+          <Dialog.Header>
+            <Dialog.Title>Добавление нового пациента</Dialog.Title>
+            <Dialog.Description>Внесите необходимые данные нового пациента.</Dialog.Description>
+          </Dialog.Header>
 
-        <div class="grid gap-4">
-          <div class="grid gap-3">
-            <Label for="first-name">Имя</Label>
-            <Input id="first-name" name="first_name" defaultValue="Исломджон" />
+          <div class="grid gap-4">
+            <div class="grid gap-3">
+              <Label for="first-name">Имя</Label>
+              <Input id="first-name" name="first_name" defaultValue="Исломджон" />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="last-name">Фамилия</Label>
+              <Input id="last-name" name="last_name" defaultValue="Хушназаров" />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="birth_date">Дата рождения</Label>
+              <Input id="birth_date" name="birth_date" type="date" defaultValue="2004-11-13" />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="phone">Номер телефона</Label>
+              <Input id="phone" name="phone" type="tel" defaultValue="+992901234567" />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="passport">Паспорт</Label>
+              <Input id="passport" name="passport" defaultValue="AA1234567" />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="gender">Пол</Label>
+              <Select.Root type="single" bind:value>
+                <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
+                <Select.Content>
+                  {#each genders as gender}
+                    <Select.Item value={gender.value}>{gender.label}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+
+            <Dialog.Footer class="mt-4">
+              <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+                Отменить
+              </Dialog.Close>
+              <Button type="submit">Сохранить</Button>
+            </Dialog.Footer>
           </div>
+        </form>
+      </Dialog.Content>
+    </Dialog.Root>
+  </div>
 
-          <div class="grid gap-3">
-            <Label for="last-name">Фамилия</Label>
-            <Input id="last-name" name="last_name" defaultValue="Хушназаров" />
-          </div>
+  <div class="flex items-center gap-2 mb-4">
+    <Input
+      placeholder="Поиск по имени и фамилии"
+      bind:value={searchQuery}
+      oninput={scheduleSearch}
+    />
+    {#if isLoading}
+      <span class="text-sm text-muted-foreground whitespace-nowrap">Загрузка...</span>
+    {/if}
+    {#if searchQuery.trim().length > 0}
+      <Button type="button" variant="outline" onclick={clearSearch} disabled={isLoading}>
+        Очистить
+      </Button>
+    {/if}
+  </div>
 
-          <div class="grid gap-3">
-            <Label for="birth_date">Дата рождения</Label>
-            <Input id="birth_date" name="birth_date" type="date" defaultValue="2004-11-13" />
-          </div>
-
-          <div class="grid gap-3">
-            <Label for="phone">Номер телефона</Label>
-            <Input id="phone" name="phone" type="tel" defaultValue="+992901234567" />
-          </div>
-
-          <div class="grid gap-3">
-            <Label for="passport">Паспорт</Label>
-            <Input id="passport" name="passport" defaultValue="AA1234567" />
-          </div>
-
-          <div class="grid gap-3">
-            <Label for="gender">Пол</Label>
-            <Select.Root type="single" bind:value>
-              <Select.Trigger class="w-[180px]">{triggerGender}</Select.Trigger>
-              <Select.Content>
-                {#each genders as gender}
-                  <Select.Item value={gender.value}>{gender.label}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-          </div>
-
-          <Dialog.Footer class="mt-4">
-            <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
-              Отменить
-            </Dialog.Close>
-            <Button type="submit">Сохранить</Button>
-          </Dialog.Footer>
-        </div>
-      </form>
-    </Dialog.Content>
-  </Dialog.Root>
-</div>
-
-<div class="min-h-[calc(100dvh-12rem)] flex flex-col">
-  <Table.Root>
-    <Table.Header>
-      <Table.Row>
-        <Table.Head class="w-[100px]">Пациент</Table.Head>
-        <Table.Head>Дата рождения</Table.Head>
-        <Table.Head>Последнее посещение</Table.Head>
-        <Table.Head>Паспорт</Table.Head>
-        <Table.Head>Номер телефона</Table.Head>
-        <Table.Head class="text-end">Пол</Table.Head>
-      </Table.Row>
-    </Table.Header>
-    <Table.Body>
-      {#if patientsResponse === null || !patientsResponse.ok || patientsResponse.data.items.length === 0}
+  <div class="flex-1 min-h-0 flex flex-col">
+    <Table.Root>
+      <Table.Header>
         <Table.Row>
-          <Table.Cell colspan={5} class="text-center py-4">Нет данных для отображения</Table.Cell>
+          <Table.Head class="w-[100px] whitespace-normal">Пациент</Table.Head>
+          <Table.Head class="whitespace-normal">Дата рождения</Table.Head>
+          <Table.Head class="whitespace-normal">Последнее посещение</Table.Head>
+          <Table.Head class="whitespace-normal">Паспорт</Table.Head>
+          <Table.Head class="whitespace-normal">Номер телефона</Table.Head>
+          <Table.Head class="text-end">Пол</Table.Head>
+          <Table.Head class="text-end">Действия</Table.Head>
         </Table.Row>
-      {:else}
-        {#each patientsResponse.data.items as patient}
+      </Table.Header>
+      <Table.Body>
+        {#if patientsResponse === null || !patientsResponse.ok || patientsResponse.data.items.length === 0}
           <Table.Row>
-            <Table.Cell class="font-medium">{patient.first_name} {patient.last_name}</Table.Cell>
-            <Table.Cell>
-              {patient.birth_date ?? "Не указано."}
-            </Table.Cell>
-            <Table.Cell>
-              {patient.last_visit ?? "Нет посещений."}
-            </Table.Cell>
-            <Table.Cell>{patient.passport_number}</Table.Cell>
-            <Table.Cell>{patient.phone_number}</Table.Cell>
-            <Table.Cell>{patient.gender}</Table.Cell>
-            <Table.Cell class="text-end">
-              <Sheet.Root>
-                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
-                  >Изменить</Sheet.Trigger
-                >
-                <Sheet.Content class="sm:max-w-[425px]">
-                  <Sheet.Header>
-                    <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
-                    <Sheet.Description>
-                      Внесите необходимые изменения в профиль пользователя.
-                    </Sheet.Description>
-                  </Sheet.Header>
-
-                  <form
-                    onsubmit={(e) => updatePatient(e, patient.id)}
-                    class="flex flex-col w-full h-full p-4"
-                  >
-                    <div class="grid gap-4">
-                      <div class="grid gap-3">
-                        <Label for="first-name">Имя</Label>
-                        <Input
-                          id="first-name"
-                          name="first_name"
-                          defaultValue={patient.first_name}
-                        />
-                      </div>
-
-                      <div class="grid gap-3">
-                        <Label for="last-name">Фамилия</Label>
-                        <Input id="last-name" name="last_name" defaultValue={patient.last_name} />
-                      </div>
-
-                      <div class="grid gap-3">
-                        <Label for="birth_date">Дата рождения</Label>
-                        <Input
-                          id="birth_date"
-                          name="birth_date"
-                          type="date"
-                          defaultValue={patient.birth_date}
-                        />
-                      </div>
-
-                      <div class="grid gap-3">
-                        <Label for="phone">Номер телефона</Label>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          defaultValue={patient.phone_number}
-                        />
-                      </div>
-
-                      <div class="grid gap-3">
-                        <Label for="passport">Паспорт</Label>
-                        <Input
-                          id="passport"
-                          name="passport"
-                          defaultValue={patient.passport_number}
-                        />
-                      </div>
-
-                      <div class="grid gap-3">
-                        <Label for="gender">Пол</Label>
-                        <Select.Root type="single" bind:value>
-                          <Select.Trigger class="w-full">{triggerGender}</Select.Trigger>
-                          <Select.Content>
-                            {#each genders as gender}
-                              <Select.Item value={gender.value}>{gender.label}</Select.Item>
-                            {/each}
-                          </Select.Content>
-                        </Select.Root>
-                      </div>
-
-                      {#if editFormErrors[patient.id]}
-                        <p class="text-sm text-destructive">{editFormErrors[patient.id]}</p>
-                      {/if}
-
-                      <Dialog.Footer class="mt-4">
-                        <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
-                          Отменить
-                        </Dialog.Close>
-                        <Button type="submit" disabled={isUpdatingPatient[patient.id]}>
-                          {isUpdatingPatient[patient.id] ? "Сохранение..." : "Сохранить"}
-                        </Button>
-                      </Dialog.Footer>
-                    </div>
-                  </form>
-                </Sheet.Content>
-              </Sheet.Root>
+            <Table.Cell colspan={7} class="text-center py-4">
+              {#if searchQuery.trim().length > 0}
+                Ничего не найдено по запросу "{searchQuery.trim()}".
+              {:else}
+                Нет данных для отображения
+              {/if}
             </Table.Cell>
           </Table.Row>
-        {/each}
-      {/if}
-    </Table.Body>
-  </Table.Root>
-  {#if patientsResponse && patientsResponse.ok}
-    <Pagination.Root count={totalItems} page={currentPage} perPage={pageSize} class="mt-auto">
-      {#snippet children({ pages, currentPage })}
-        <Pagination.Content>
-          <Pagination.Item>
-            <Pagination.Previous placeholder="Предыдущая" onclick={() => goPrev()} />
-          </Pagination.Item>
-          {#each pages as page (page.key)}
-            {#if page.type === "ellipsis"}
-              <Pagination.Item>
-                <Pagination.Ellipsis />
-              </Pagination.Item>
-            {:else}
-              <Pagination.Item>
-                <Pagination.Link
-                  {page}
-                  isActive={currentPage === page.value}
-                  onclick={() => loadPatientsPage(page.value)}
-                >
-                  {page.value}
-                </Pagination.Link>
-              </Pagination.Item>
-            {/if}
+        {:else}
+          {#each patientsResponse.data.items as patient}
+            <Table.Row>
+              <Table.Cell class="font-medium whitespace-normal break-words">
+                {patient.first_name} {patient.last_name}
+              </Table.Cell>
+              <Table.Cell class="whitespace-normal break-words">
+                {patient.birth_date ?? "Не указано."}
+              </Table.Cell>
+              <Table.Cell class="whitespace-normal break-words">
+                {patient.last_visit ?? "Нет посещений."}
+              </Table.Cell>
+              <Table.Cell class="whitespace-normal break-words">{patient.passport_number}</Table.Cell>
+              <Table.Cell class="whitespace-normal break-words">{patient.phone_number}</Table.Cell>
+              <Table.Cell class="whitespace-normal break-words">{getGenderName(patient.gender)}</Table.Cell>
+              <Table.Cell class="text-end">
+                <Sheet.Root>
+                  <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
+                    >Изменить</Sheet.Trigger
+                  >
+                  <Sheet.Content class="sm:max-w-[425px]">
+                    <Sheet.Header>
+                      <Sheet.Title>Обновление профиля пользователя</Sheet.Title>
+                      <Sheet.Description>
+                        Внесите необходимые изменения в профиль пользователя.
+                      </Sheet.Description>
+                    </Sheet.Header>
+
+                    <form
+                      onsubmit={(e) => updatePatient(e, patient.id)}
+                      class="flex flex-col w-full h-full p-4"
+                    >
+                      <div class="grid gap-4">
+                        <div class="grid gap-3">
+                          <Label for="first-name">Имя</Label>
+                          <Input
+                            id="first-name"
+                            name="first_name"
+                            defaultValue={patient.first_name}
+                          />
+                        </div>
+
+                        <div class="grid gap-3">
+                          <Label for="last-name">Фамилия</Label>
+                          <Input
+                            id="last-name"
+                            name="last_name"
+                            defaultValue={patient.last_name}
+                          />
+                        </div>
+
+                        <div class="grid gap-3">
+                          <Label for="birth_date">Дата рождения</Label>
+                          <Input
+                            id="birth_date"
+                            name="birth_date"
+                            type="date"
+                            defaultValue={patient.birth_date}
+                          />
+                        </div>
+
+                        <div class="grid gap-3">
+                          <Label for="phone">Номер телефона</Label>
+                          <Input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            defaultValue={patient.phone_number}
+                          />
+                        </div>
+
+                        <div class="grid gap-3">
+                          <Label for="passport">Паспорт</Label>
+                          <Input
+                            id="passport"
+                            name="passport"
+                            defaultValue={patient.passport_number}
+                          />
+                        </div>
+
+                        <div class="grid gap-3">
+                          <Label for="gender">Пол</Label>
+                          <Select.Root type="single" bind:value>
+                            <Select.Trigger class="w-full">{triggerGender}</Select.Trigger>
+                            <Select.Content>
+                              {#each genders as gender}
+                                <Select.Item value={gender.value}>{gender.label}</Select.Item>
+                              {/each}
+                            </Select.Content>
+                          </Select.Root>
+                        </div>
+
+                        {#if editFormErrors[patient.id]}
+                          <p class="text-sm text-destructive">{editFormErrors[patient.id]}</p>
+                        {/if}
+
+                        <Dialog.Footer class="mt-4">
+                          <Dialog.Close
+                            type="button"
+                            class={buttonVariants({ variant: "outline" })}
+                          >
+                            Отменить
+                          </Dialog.Close>
+                          <Button type="submit" disabled={isUpdatingPatient[patient.id]}>
+                            {isUpdatingPatient[patient.id] ? "Сохранение..." : "Сохранить"}
+                          </Button>
+                        </Dialog.Footer>
+                      </div>
+                    </form>
+                  </Sheet.Content>
+                </Sheet.Root>
+              </Table.Cell>
+            </Table.Row>
           {/each}
-          <Pagination.Item>
-            <Pagination.Next onclick={() => goNext()} />
-          </Pagination.Item>
-        </Pagination.Content>
-      {/snippet}
-    </Pagination.Root>
-  {/if}
+        {/if}
+      </Table.Body>
+    </Table.Root>
+    {#if patientsResponse && patientsResponse.ok}
+      <Pagination.Root count={totalItems} page={currentPage} perPage={pageSize} class="mt-4">
+        {#snippet children({ pages, currentPage })}
+          <Pagination.Content>
+            <Pagination.Item>
+              <Pagination.Previous placeholder="Предыдущая" onclick={() => goPrev()} />
+            </Pagination.Item>
+            {#each pages as page (page.key)}
+              {#if page.type === "ellipsis"}
+                <Pagination.Item>
+                  <Pagination.Ellipsis />
+                </Pagination.Item>
+              {:else}
+                <Pagination.Item>
+                  <Pagination.Link
+                    {page}
+                    isActive={currentPage === page.value}
+                    onclick={() => loadPatientsPage(page.value)}
+                  >
+                    {page.value}
+                  </Pagination.Link>
+                </Pagination.Item>
+              {/if}
+            {/each}
+            <Pagination.Item>
+              <Pagination.Next onclick={() => goNext()} />
+            </Pagination.Item>
+          </Pagination.Content>
+        {/snippet}
+      </Pagination.Root>
+    {/if}
+  </div>
 </div>
