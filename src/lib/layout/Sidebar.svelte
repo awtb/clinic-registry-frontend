@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar"
   import { page } from "$app/stores"
-  import { BriefcaseMedical, Home, NotepadText, Settings, Users } from "lucide-svelte"
+  import { BriefcaseMedical, History, Home, NotepadText, Settings, Users } from "lucide-svelte"
     import { goto } from "$app/navigation"
 
   export type SidebarItem = {
@@ -40,6 +40,11 @@
             icon: NotepadText,
             title: "Записи",
             href: "/records"
+        },
+        {
+            icon: History,
+            title: "Логи",
+            href: "/logs"
         }
       ],
     },

@@ -4,6 +4,7 @@ import { buildAuthClient } from "$lib/shared/api/endpoints/auth"
 import { buildUsersClient } from "$lib/shared/api/endpoints/user"
 import { buildPatientsClient as buildPatientsClient } from "./endpoints/patient"
 import { buildMedicalRecordsClient } from "./endpoints/medical-record"
+import { buildLogsClient } from "./endpoints/log"
 import { ErrorSchema } from "$lib/schemas/base"
 
 const getPayload = async (response: Response): Promise<unknown> => {
@@ -130,5 +131,6 @@ export const buildApiClient = (fetchFn: typeof fetch, baseUrl: string) => {
     users: buildUsersClient(httpClient),
     patients: buildPatientsClient(httpClient),
     medicalRecords: buildMedicalRecordsClient(httpClient),
+    logs: buildLogsClient(httpClient),
   }
 }
