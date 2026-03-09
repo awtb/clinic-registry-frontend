@@ -9,7 +9,6 @@ export const DashboardCountSchema = z.object({
 
 export const DashboardBreakdownSchema = z.object({
   users_by_role: z.record(z.string(), z.coerce.number().int().min(0)),
-  patients_by_gender: z.record(z.string(), z.coerce.number().int().min(0)),
   logs_by_entity: z.record(z.string(), z.coerce.number().int().min(0)),
   logs_by_action: z.record(z.string(), z.coerce.number().int().min(0)),
 })
