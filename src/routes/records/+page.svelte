@@ -13,6 +13,10 @@
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import type { PageData } from "./$types"
   import { toast } from "svelte-sonner"
+  import * as Command from "$lib/components/ui/command/index.js"
+  import * as Popover from "$lib/components/ui/popover/index.js"
+  import { cn } from "$lib/utils.js"
+  import { CheckIcon, ChevronsUpDownIcon } from "lucide-svelte"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
 
@@ -25,12 +29,19 @@
   }
 
   let currentPage = $derived(medicalRecordsResponse?.ok ? medicalRecordsResponse.data.page : 1)
-  const totalPages = $derived(medicalRecordsResponse?.ok ? medicalRecordsResponse.data.total_pages : 1)
+  const totalPages = $derived(
+    medicalRecordsResponse?.ok ? medicalRecordsResponse.data.total_pages : 1,
+  )
   const pageSize = $derived(medicalRecordsResponse?.ok ? medicalRecordsResponse.data.page_size : 10)
-  const totalItems = $derived(medicalRecordsResponse?.ok ? medicalRecordsResponse.data.total_items : 0)
+  const totalItems = $derived(
+    medicalRecordsResponse?.ok ? medicalRecordsResponse.data.total_items : 0,
+  )
 
   let isLoading = $state(false)
+  let open = $state(false)
+  let triggerRef = $state<HTMLElement | null>(null)
   let patientInputValue = $state("")
+  let selectedPatientId = $state("")
   let patientOptions = $state<PatientOption[]>([])
   let createFormError = $state("")
   let isUpdatingRecord = $state<Record<string, boolean>>({})
@@ -38,11 +49,8 @@
   let searchDebounceTimeout = $state<ReturnType<typeof setTimeout> | undefined>(undefined)
   let latestSearchRequestId = $state(0)
 
-  const selectedPatientId = $derived(
-    patientOptions.find(
-      (patient: PatientOption) =>
-        patient.label.toLowerCase() === patientInputValue.trim().toLowerCase(),
-    )?.value ?? "",
+  const selectedValue = $derived(
+    patientOptions.find((patient) => patient.value === selectedPatientId)?.label ?? ""
   )
 
   const updateQueryParams = (nextPage: number, nextSize: number) => {
@@ -52,7 +60,10 @@
     replaceState(`?${params.toString()}`, {})
   }
 
-  const patientNameFromRecord = (record: { patient: { first_name: string; last_name: string }; patient_id?: string }) => {
+  const patientNameFromRecord = (record: {
+    patient: { first_name: string; last_name: string }
+    patient_id?: string
+  }) => {
     if (record.patient?.first_name || record.patient?.last_name) {
       return `${record.patient.first_name} ${record.patient.last_name}`.trim()
     }
@@ -71,7 +82,8 @@
 
     const firstLast = `${record.creator.first_name ?? ""} ${record.creator.last_name ?? ""}`.trim()
     if (firstLast.length > 0) return firstLast
-    if (record.creator.username && record.creator.username.length > 0) return record.creator.username
+    if (record.creator.username && record.creator.username.length > 0)
+      return record.creator.username
     if (record.creator.email && record.creator.email.length > 0) return record.creator.email
     return "Не указан"
   }
@@ -179,6 +191,7 @@
     toast.success("Медицинская запись успешно создана.")
     form.reset()
     patientInputValue = ""
+    selectedPatientId = ""
     patientOptions = []
     await loadMedicalRecordsPage(1)
   }
@@ -229,56 +242,87 @@
         <div class="grid gap-4 mt-4">
           <div class="grid gap-3">
             <Label for="patient">Пациент</Label>
-            <Input
-              id="patient"
-              type="text"
-              placeholder="Начните вводить имя пациента..."
-              list="patient-options"
-              bind:value={patientInputValue}
-              oninput={() => {
-                if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout)
-                searchDebounceTimeout = setTimeout(() => {
-                  searchPatients(patientInputValue)
-                }, 300)
-              }}
-            />
-            <datalist id="patient-options">
-              {#each patientOptions as patient}
-                <option value={patient.label}></option>
-              {/each}
-            </datalist>
+
+            <Popover.Root bind:open>
+              <Popover.Trigger bind:ref={triggerRef}>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="outline"
+                    class="w-[200px] justify-between"
+                    role="combobox"
+                    aria-expanded={open}
+                  >
+                    {selectedValue || "Выберите пациента"}
+                    <ChevronsUpDownIcon class="opacity-50" />
+                  </Button>
+                {/snippet}
+              </Popover.Trigger>
+              <Popover.Content class="w-[200px] p-0">
+                <Command.Root>
+                  <Command.Input
+                    placeholder="Поиск пациента"
+                    bind:value={patientInputValue}
+                    oninput={() => {
+                      if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout)
+                      searchDebounceTimeout = setTimeout(() => {
+                        searchPatients(patientInputValue)
+                      }, 300)
+                    }}
+                  />
+                  <Command.List>
+                    <Command.Empty>Пациент не найден</Command.Empty>
+                    <Command.Group value="frameworks">
+                      {#each patientOptions as patient (patient.value)}
+                        <Command.Item
+                          value={patient.value}
+                          onSelect={() => {
+                            selectedPatientId = patient.value
+                            patientInputValue = patient.label
+                            open = false
+                          }}
+                        >
+                          <CheckIcon class={cn(selectedPatientId !== patient.value && "text-transparent")} />
+                          {patient.label}
+                        </Command.Item>
+                      {/each}
+                    </Command.Group>
+                  </Command.List>
+                </Command.Root>
+              </Popover.Content>
+            </Popover.Root>
+
+            <div class="grid gap-3">
+              <Label for="chief_complaint">Жалоба</Label>
+              <Textarea id="chief_complaint" name="chief_complaint" rows={3} />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="diagnosis">Диагноз</Label>
+              <Input id="diagnosis" name="diagnosis" />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="treatment">Лечение</Label>
+              <Textarea id="treatment" name="treatment" rows={3} />
+            </div>
+
+            <div class="grid gap-3">
+              <Label for="procedures">Процедуры</Label>
+              <Textarea id="procedures" name="procedures" rows={3} />
+            </div>
+
+            {#if createFormError}
+              <p class="text-sm text-destructive">{createFormError}</p>
+            {/if}
+
+            <Dialog.Footer class="mt-4">
+              <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
+                Отменить
+              </Dialog.Close>
+              <Button type="submit">Сохранить</Button>
+            </Dialog.Footer>
           </div>
-
-          <div class="grid gap-3">
-            <Label for="chief_complaint">Жалоба</Label>
-            <Textarea id="chief_complaint" name="chief_complaint" rows={3} />
-          </div>
-
-          <div class="grid gap-3">
-            <Label for="diagnosis">Диагноз</Label>
-            <Input id="diagnosis" name="diagnosis" />
-          </div>
-
-          <div class="grid gap-3">
-            <Label for="treatment">Лечение</Label>
-            <Textarea id="treatment" name="treatment" rows={3} />
-          </div>
-
-          <div class="grid gap-3">
-            <Label for="procedures">Процедуры</Label>
-            <Textarea id="procedures" name="procedures" rows={3} />
-          </div>
-
-          {#if createFormError}
-            <p class="text-sm text-destructive">{createFormError}</p>
-          {/if}
-
-          <Dialog.Footer class="mt-4">
-            <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
-              Отменить
-            </Dialog.Close>
-            <Button type="submit">Сохранить</Button>
-          </Dialog.Footer>
         </div>
       </form>
     </Dialog.Content>
@@ -288,18 +332,18 @@
 <div class="min-h-[calc(100dvh-8rem)] flex flex-col">
   <Table.Root>
     <Table.Header>
-        <Table.Row>
-          <Table.Head>Пациент</Table.Head>
-          <Table.Head>Жалоба</Table.Head>
-          <Table.Head>Диагноз</Table.Head>
-          <Table.Head>Лечение</Table.Head>
-          <Table.Head>Процедуры</Table.Head>
-          <Table.Head>Врач</Table.Head>
-          <Table.Head>Создано</Table.Head>
-          <Table.Head class="text-end">Действия</Table.Head>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
+      <Table.Row>
+        <Table.Head>Пациент</Table.Head>
+        <Table.Head>Жалоба</Table.Head>
+        <Table.Head>Диагноз</Table.Head>
+        <Table.Head>Лечение</Table.Head>
+        <Table.Head>Процедуры</Table.Head>
+        <Table.Head>Врач</Table.Head>
+        <Table.Head>Создано</Table.Head>
+        <Table.Head class="text-end">Действия</Table.Head>
+      </Table.Row>
+    </Table.Header>
+    <Table.Body>
       {#if medicalRecordsResponse === null || !medicalRecordsResponse.ok || medicalRecordsResponse.data.items.length === 0}
         <Table.Row>
           <Table.Cell colspan={8} class="text-center py-4">Нет данных для отображения</Table.Cell>
@@ -316,7 +360,9 @@
             <Table.Cell>{record.created_at}</Table.Cell>
             <Table.Cell class="text-end">
               <Sheet.Root>
-                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Изменить</Sheet.Trigger>
+                <Sheet.Trigger class={buttonVariants({ variant: "outline" })}
+                  >Изменить</Sheet.Trigger
+                >
                 <Sheet.Content class="sm:max-w-[560px]">
                   <Sheet.Header>
                     <Sheet.Title>Редактирование медицинской записи</Sheet.Title>
