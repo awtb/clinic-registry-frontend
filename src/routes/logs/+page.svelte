@@ -15,6 +15,11 @@
 
   const props = $props<{ data: PageData }>()
 
+  type ActorOption = {
+    id: string
+    name: string
+  }
+
   const actionOptions: Array<{ label: string; value: LogAction | "" }> = [
     { label: "Все действия", value: "" },
     { label: "Создание", value: "CREATE" },
@@ -77,6 +82,7 @@
   let entityType = $state<LogEntity | "">(props.data.filters.entityType ?? "")
   let actionType = $state<LogAction | "">(props.data.filters.actionType ?? "")
   let entityId = $state(props.data.filters.entityId ?? "")
+  let actorOptions = $state<Array<ActorOption>>([])
   let createdFrom = $state(toDateTimeLocalValue(props.data.filters.createdFrom ?? ""))
   let createdTo = $state(toDateTimeLocalValue(props.data.filters.createdTo ?? ""))
   let isLoading = $state(false)
@@ -192,6 +198,16 @@
     return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
   }
 
+  const searchActor = async (query: string) => {
+    const response = await apiClient.users.getAll(1, 10, query)
+    if (response.ok) {
+      actorOptions = response.data.items.map((user) => ({
+        id: user.id,
+        name: `${user.first_name} ${user.last_name} (${user.username})`,
+      }))
+    }
+  }
+
   const getChangedFields = (log: Log) => {
     const fields = logFieldMap[log.entity_type]
     const before = toRecord(log.entity_before)
@@ -279,7 +295,17 @@
     <h1 class="text-2xl font-bold mb-4">Логи</h1>
 
     <form class="grid gap-2 md:grid-cols-2 xl:grid-cols-4" onsubmit={submitFilters}>
-      <Input placeholder="Actor ID" bind:value={actorId} />
+      <Input
+        placeholder="Пользователь"
+        bind:value={actorId}
+        oninput={() => searchActor(actorId)}
+        list="actors"
+      />
+      <datalist id="actors">
+        {#each actorOptions as option}
+          <option value={option.id}>{option.name}</option>
+        {/each}
+      </datalist>
       <Input placeholder="Entity ID" bind:value={entityId} />
 
       <Select.Root type="single" bind:value={entityType}>
@@ -305,7 +331,12 @@
 
       <div class="flex items-center gap-2 md:col-span-2">
         <Button type="submit" disabled={isLoading}>Применить</Button>
-        <Button type="button" variant="outline" onclick={clearFilters} disabled={!hasActiveFilters || isLoading}>
+        <Button
+          type="button"
+          variant="outline"
+          onclick={clearFilters}
+          disabled={!hasActiveFilters || isLoading}
+        >
           Сбросить
         </Button>
         {#if isLoading}
@@ -347,7 +378,9 @@
               <Table.Row>
                 <Table.Cell class="whitespace-nowrap">{formatDateTime(log.created_at)}</Table.Cell>
                 <Table.Cell>
-                  <Badge variant={badgeVariantForAction(log.action)}>{actionLabelFor(log.action)}</Badge>
+                  <Badge variant={badgeVariantForAction(log.action)}
+                    >{actionLabelFor(log.action)}</Badge
+                  >
                 </Table.Cell>
                 <Table.Cell>
                   <Badge variant="outline">{entityLabelFor(log.entity_type)}</Badge>
@@ -406,7 +439,9 @@
                           <div class="border rounded-md p-3 grid gap-2">
                             {#each metadataEntries as metadata (metadata.key)}
                               <div class="grid gap-1 md:grid-cols-[200px_1fr]">
-                                <p class="text-xs text-muted-foreground break-all">{metadata.key}</p>
+                                <p class="text-xs text-muted-foreground break-all">
+                                  {metadata.key}
+                                </p>
                                 <p class="text-sm break-all">{metadata.value}</p>
                               </div>
                             {/each}
