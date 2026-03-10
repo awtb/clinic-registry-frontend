@@ -1,4 +1,4 @@
-import { string, type z } from "zod"
+import {  type z } from "zod"
 import type { ApiError, ApiResult, RequestArgs, RequestWithSchemaArgs } from "$lib/shared/api/types"
 import { buildAuthClient } from "$lib/shared/api/endpoints/auth"
 import { buildUsersClient } from "$lib/shared/api/endpoints/user"

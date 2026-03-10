@@ -54,6 +54,7 @@
 		tooltipContent?: Snippet | string;
 		tooltipContentProps?: WithoutChildrenOrChild<ComponentProps<typeof Tooltip.Content>>;
 		child?: Snippet<[{ props: Record<string, unknown> }]>;
+		disabled?: boolean
 	} = $props();
 
 	const sidebar = useSidebar();

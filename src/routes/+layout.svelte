@@ -12,12 +12,15 @@
   import { browser } from '$app/environment'
   import { Toaster } from '$lib/components/ui/sonner/index.js'
   import { ModeWatcher, mode, toggleMode } from "mode-watcher"
+  import { resolve } from '$app/paths'
 
   let { data, children } = $props()
 
 
   if (browser) {
+    // eslint-disable-next-line no-undef
     const baseUrl = new URL("/api/", window.location.origin).toString()
+    // eslint-disable-next-line no-undef
     setContext(apiClientKey, buildApiClient(fetch, baseUrl))
   }
 
@@ -34,7 +37,7 @@
 <div class="h-dvh flex flex-col overflow-hidden">
   <header class="h-16 shrink-0 z-50 border-b bg-background/80 backdrop-blur">
     <div class="h-16 w-full flex items-center gap-4 px-6">
-      <a href="/">
+      <a href={resolve("/")}>
         <ClipboardPlus />
       </a>
 
@@ -57,7 +60,7 @@
         </Button>
 
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
+          <DropdownMenu.Trigger>
             <Button variant="ghost" size="icon" aria-label="Аккаунт">
               <User class="h-5 w-5" />
             </Button>
@@ -79,7 +82,7 @@
   <div class="flex-1 min-h-0 flex">
     {#if data.currentUser.role !== 'guest'}
       <aside class="w-64 shrink-0 border-r bg-background overflow-hidden">
-        <Sidebar footerTitle="Clinic Registry" footerSubtitle="v1.0.0" />
+        <Sidebar />
       </aside>
 
       <main class="flex-1 min-w-0 min-h-0 overflow-auto p-6">
