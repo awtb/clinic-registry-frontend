@@ -5,7 +5,7 @@
   import { Badge } from '$lib/components/ui/badge'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import { ClipboardPlus, Moon, Search, Sun, User } from 'lucide-svelte'
-  import Sidebar from '$lib/layout/sidebar.svelte'
+  import Sidebar from '$lib/layout/sidebar'
   import {setContext} from "svelte";
   import {buildApiClient} from "$lib/shared/api/client";
   import {apiClientKey} from "$lib/shared/api/context";
@@ -15,7 +15,6 @@
   import { resolve } from '$app/paths'
 
   let { data, children } = $props()
-
 
   if (browser) {
     // eslint-disable-next-line no-undef
