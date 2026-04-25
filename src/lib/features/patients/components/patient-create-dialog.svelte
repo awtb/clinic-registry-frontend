@@ -38,7 +38,7 @@
       const data: CreateData = {
         ...form.data,
         phone_number: form.data.phone_number?.trim() || undefined,
-        passport_number: form.data.passport_number?.trim() || undefined,
+        passport_number: form.data.passport_number.trim(),
       }
       const result = await onCreate(data)
 
@@ -131,6 +131,7 @@
             id="create-patient-passport"
             name="passport"
             bind:value={$form.passport_number}
+            aria-invalid={$errors.passport_number ? "true" : undefined}
           />
           {#if $errors.passport_number}
             <p class="text-sm text-destructive">{$errors.passport_number}</p>
