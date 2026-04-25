@@ -2,15 +2,17 @@
   import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Table from "$lib/components/ui/table"
+  import { UserUpdateSchema } from "$lib/schemas/user"
+  import type { z } from "zod"
   import UserEditSheet from "./user-edit-sheet.svelte"
   import type { RoleOption, UsersPageResponse } from "../model/types"
+
+  type UpdateData = z.infer<typeof UserUpdateSchema>
 
   const {
     usersResponse,
     roles,
     searchQuery,
-    editFormErrors,
-    isUpdatingUser,
     totalItems,
     currentPage,
     pageSize,
@@ -22,15 +24,13 @@
     usersResponse: UsersPageResponse | null
     roles: RoleOption[]
     searchQuery: string
-    editFormErrors: Record<string, string>
-    isUpdatingUser: Record<string, boolean>
     totalItems: number
     currentPage: number
     pageSize: number
     onPrev: () => void
     onNext: () => void
     onPageSelect: (page: number) => void | Promise<void>
-    onUpdateUser: (event: SubmitEvent, userId: string, roleValue: string) => void | Promise<void>
+    onUpdateUser: (userId: string, data: UpdateData) => Promise<{ ok: boolean; error?: string }>
   }>()
 </script>
 
@@ -69,13 +69,7 @@
               <Table.Cell>15</Table.Cell>
               <Table.Cell>ACTIVE</Table.Cell>
               <Table.Cell class="text-end">
-                <UserEditSheet
-                  {user}
-                  {roles}
-                  errorMessage={editFormErrors[user.id] ?? ""}
-                  isSubmitting={Boolean(isUpdatingUser[user.id])}
-                  onSubmit={onUpdateUser}
-                />
+                <UserEditSheet {user} {roles} onUpdate={onUpdateUser} />
               </Table.Cell>
             </Table.Row>
           {/each}

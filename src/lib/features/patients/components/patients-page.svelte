@@ -4,6 +4,7 @@
   import { SvelteURL, SvelteURLSearchParams } from "svelte/reactivity"
   import { toast } from "svelte-sonner"
   import { PatientCreateSchema, PatientUpdateSchema } from "$lib/schemas/patient"
+  import type { z } from "zod"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import PatientCreateDialog from "./patient-create-dialog.svelte"
   import PatientsSearch from "./patients-search.svelte"
@@ -23,8 +24,6 @@
   const totalItems = $derived(patientsResponse?.ok ? patientsResponse.data.total_items : 0)
 
   let isLoading = $state(false)
-  let isUpdatingPatient = $state<Record<string, boolean>>({})
-  let editFormErrors = $state<Record<string, string>>({})
 
   const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
     const params = new SvelteURLSearchParams()
@@ -37,74 +36,33 @@
     globalThis.history.replaceState(globalThis.history.state, "", nextUrl)
   }
 
-  const setEditFormError = (patientId: string, message: string) => {
-    editFormErrors = { ...editFormErrors, [patientId]: message }
+  async function createPatient(
+    data: z.infer<typeof PatientCreateSchema>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const response = await apiClient.patients.create(data)
+
+    if (!response.ok) {
+      return { ok: false, error: response.error.message || "Не удалось создать пациента." }
+    }
+
+    toast.success("Пациент успешно добавлен.")
+    await loadPatientsPage(1)
+    return { ok: true }
   }
 
-  const parseBirthDate = (birthDateValue: FormDataEntryValue | null) => {
-    if (typeof birthDateValue !== "string" || birthDateValue.length === 0) return undefined
-    return new Date(birthDateValue)
-  }
+  async function updatePatient(
+    patientId: string,
+    data: z.infer<typeof PatientUpdateSchema>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const response = await apiClient.patients.update(patientId, data)
 
-  async function createPatient(event: SubmitEvent, genderValue: string) {
-    event.preventDefault()
-    const form = event.target as HTMLFormElement
-    const formData = new FormData(form)
-
-    const payload = PatientCreateSchema.safeParse({
-      first_name: formData.get("first_name"),
-      last_name: formData.get("last_name"),
-      birth_date: parseBirthDate(formData.get("birth_date")),
-      phone_number: formData.get("phone"),
-      passport_number: formData.get("passport"),
-      gender: genderValue,
-    })
-
-    if (!payload.success) {
-      globalThis.console.error("Validation failed:", payload.error)
-      return
+    if (!response.ok) {
+      return { ok: false, error: response.error.message || "Не удалось обновить пациента." }
     }
 
-    const response = await apiClient.patients.create(payload.data)
-
-    if (response.ok) {
-      await loadPatientsPage(1)
-    } else {
-      globalThis.console.error("Failed to create patient:", response)
-    }
-  }
-
-  async function updatePatient(event: SubmitEvent, patientId: string, genderValue: string) {
-    event.preventDefault()
-    const form = event.target as HTMLFormElement
-    setEditFormError(patientId, "")
-    const formData = new FormData(form)
-    const newGender = genderValue.length > 0 ? genderValue : undefined
-
-    const updatePayload = PatientUpdateSchema.safeParse({
-      first_name: formData.get("first_name") as string,
-      last_name: formData.get("last_name") as string,
-      birth_date: parseBirthDate(formData.get("birth_date")),
-      phone_number: formData.get("phone") as string,
-      passport_number: formData.get("passport") as string,
-      gender: newGender,
-    })
-
-    if (!updatePayload.success) {
-      setEditFormError(patientId, updatePayload.error.issues[0]?.message ?? "Проверьте поля формы.")
-      return
-    }
-
-    isUpdatingPatient = { ...isUpdatingPatient, [patientId]: true }
-    const response = await apiClient.patients.update(patientId, updatePayload.data)
-
-    if (response.ok) {
-      toast.success("Данные о пациенте успешно обновлены.")
-      await loadPatientsPage(currentPage)
-    } else {
-      setEditFormError(patientId, response.error.message || "Не удалось обновить пациента.")
-    }
-    isUpdatingPatient = { ...isUpdatingPatient, [patientId]: false }
+    toast.success("Данные о пациенте успешно обновлены.")
+    await loadPatientsPage(currentPage)
+    return { ok: true }
   }
 
   let requestSeq = 0
@@ -153,7 +111,7 @@
 <div class="h-full min-h-0 flex flex-col">
   <div class="flex items-center justify-between mb-4">
     <h1 class="text-2xl font-bold mb-4">Пациенты</h1>
-    <PatientCreateDialog genders={patientGenderOptions} onSubmit={createPatient} />
+    <PatientCreateDialog genders={patientGenderOptions} onCreate={createPatient} />
   </div>
 
   <PatientsSearch bind:searchQuery {isLoading} onSearchInput={scheduleSearch} onClear={clearSearch} />
@@ -162,8 +120,6 @@
     {patientsResponse}
     genders={patientGenderOptions}
     {searchQuery}
-    {editFormErrors}
-    {isUpdatingPatient}
     {totalItems}
     {currentPage}
     {pageSize}

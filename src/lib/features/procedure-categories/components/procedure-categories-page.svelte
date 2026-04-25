@@ -7,6 +7,7 @@
     ProcedureCategoryCreateSchema,
     ProcedureCategoryUpdateSchema,
   } from "$lib/schemas/procedure-category"
+  import type { z } from "zod"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import ProcedureCategoriesSearch from "./procedure-categories-search.svelte"
   import ProcedureCategoriesTable from "./procedure-categories-table.svelte"
@@ -33,9 +34,6 @@
   )
 
   let isLoading = $state(false)
-  let createFormError = $state("")
-  let isUpdatingCategory = $state<Record<string, boolean>>({})
-  let editFormErrors = $state<Record<string, string>>({})
 
   const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
     const params = new SvelteURLSearchParams()
@@ -48,76 +46,33 @@
     globalThis.history.replaceState(globalThis.history.state, "", nextUrl)
   }
 
-  const setEditFormError = (categoryId: string, message: string) => {
-    editFormErrors = { ...editFormErrors, [categoryId]: message }
-  }
-
-  async function createCategory(event: SubmitEvent, isActive: boolean): Promise<boolean> {
-    event.preventDefault()
-    const form = event.target as HTMLFormElement
-    const formData = new FormData(form)
-    createFormError = ""
-
-    const descriptionRaw = formData.get("description")
-    const payload = ProcedureCategoryCreateSchema.safeParse({
-      code: formData.get("code"),
-      name: formData.get("name"),
-      description:
-        typeof descriptionRaw === "string" && descriptionRaw.trim().length > 0
-          ? descriptionRaw
-          : null,
-      is_active: isActive,
-    })
-
-    if (!payload.success) {
-      createFormError = payload.error.issues[0]?.message ?? "Проверьте поля формы."
-      return false
-    }
-
-    const response = await apiClient.procedureCategories.create(payload.data)
+  async function createCategory(
+    data: z.infer<typeof ProcedureCategoryCreateSchema>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const response = await apiClient.procedureCategories.create(data)
 
     if (!response.ok) {
-      createFormError = response.error.message || "Не удалось создать категорию."
-      return false
+      return { ok: false, error: response.error.message || "Не удалось создать категорию." }
     }
 
     toast.success("Категория успешно создана.")
     await loadCategoriesPage(1)
-    return true
+    return { ok: true }
   }
 
-  async function updateCategory(event: SubmitEvent, categoryId: string, isActive: boolean) {
-    event.preventDefault()
-    const form = event.target as HTMLFormElement
-    setEditFormError(categoryId, "")
-    const formData = new FormData(form)
+  async function updateCategory(
+    categoryId: string,
+    data: z.infer<typeof ProcedureCategoryUpdateSchema>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const response = await apiClient.procedureCategories.update(categoryId, data)
 
-    const descriptionRaw = formData.get("description")
-    const payload = ProcedureCategoryUpdateSchema.safeParse({
-      code: formData.get("code") as string,
-      name: formData.get("name") as string,
-      description:
-        typeof descriptionRaw === "string" && descriptionRaw.trim().length > 0
-          ? descriptionRaw
-          : null,
-      is_active: isActive,
-    })
-
-    if (!payload.success) {
-      setEditFormError(categoryId, payload.error.issues[0]?.message ?? "Проверьте поля формы.")
-      return
+    if (!response.ok) {
+      return { ok: false, error: response.error.message || "Не удалось обновить категорию." }
     }
 
-    isUpdatingCategory = { ...isUpdatingCategory, [categoryId]: true }
-    const response = await apiClient.procedureCategories.update(categoryId, payload.data)
-
-    if (response.ok) {
-      toast.success("Категория успешно обновлена.")
-      await loadCategoriesPage(currentPage)
-    } else {
-      setEditFormError(categoryId, response.error.message || "Не удалось обновить категорию.")
-    }
-    isUpdatingCategory = { ...isUpdatingCategory, [categoryId]: false }
+    toast.success("Категория успешно обновлена.")
+    await loadCategoriesPage(currentPage)
+    return { ok: true }
   }
 
   let requestSeq = 0
@@ -166,7 +121,7 @@
 <div class="h-full min-h-0 flex flex-col">
   <div class="flex items-center justify-between mb-4">
     <h1 class="text-2xl font-bold mb-4">Категории процедур</h1>
-    <ProcedureCategoryCreateDialog {createFormError} onSubmit={createCategory} />
+    <ProcedureCategoryCreateDialog onCreate={createCategory} />
   </div>
 
   <ProcedureCategoriesSearch
@@ -179,8 +134,6 @@
   <ProcedureCategoriesTable
     {procedureCategoriesResponse}
     {searchQuery}
-    {editFormErrors}
-    {isUpdatingCategory}
     {totalItems}
     {currentPage}
     {pageSize}
