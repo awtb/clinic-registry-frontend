@@ -18,7 +18,7 @@ export const PatientCreateSchema = z.object({
   last_name: z.string().min(1, "Фамилия обязательна"),
   phone_number: z.string().optional(),
   birth_date: z.date().optional(),
-  passport_number: z.string().optional(),
+  passport_number: z.string().min(1, "Паспорт обязателен"),
   gender: z.enum(["MALE", "FEMALE"]),
   notes: z.string().optional(),
 })
@@ -28,7 +28,7 @@ export const PatientUpdateSchema = z.object({
   last_name: z.string().min(1, "Фамилия обязательна").optional(),
   phone_number: z.string().optional(),
   birth_date: z.date().optional(),
-  passport_number: z.string().optional(),
+  passport_number: z.string().min(1, "Паспорт обязателен").optional(),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
   notes: z.string().optional(),
 })
