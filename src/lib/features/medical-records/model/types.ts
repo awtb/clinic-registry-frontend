@@ -14,4 +14,7 @@ export type MedicalRecordsPageRouteData = {
 export type PatientOption = {
   value: string
   label: string
+  birth_date?: string
+  passport_number: string
+  phone_number?: string
 }
