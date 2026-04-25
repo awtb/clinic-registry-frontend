@@ -2,6 +2,7 @@
   import { resolve } from "$app/paths"
   import { MedicalRecordCreateSchema, MedicalRecordUpdateSchema } from "$lib/schemas/medical-record"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
+  import type { Procedure } from "$lib/features/procedures/model/types"
   import { getContext } from "svelte"
   import { SvelteURL, SvelteURLSearchParams } from "svelte/reactivity"
   import { toast } from "svelte-sonner"
@@ -55,10 +56,26 @@
     return response.data.items.map((patient) => ({
       value: patient.id,
       label: `${patient.first_name} ${patient.last_name}`,
+      birth_date: patient.birth_date,
+      passport_number: patient.passport_number,
+      phone_number: patient.phone_number,
     }))
   }
 
-  async function createMedicalRecord(event: SubmitEvent, selectedPatientId: string): Promise<boolean> {
+  async function searchProcedures(query: string): Promise<Procedure[]> {
+    const response = await apiClient.procedures.getAll(1, 20, query, undefined, true)
+    if (!response.ok) {
+      globalThis.console.error("Failed to search procedures:", response.error)
+      return []
+    }
+    return response.data.items
+  }
+
+  async function createMedicalRecord(
+    event: SubmitEvent,
+    selectedPatientId: string,
+    selectedProcedureIds: string[],
+  ): Promise<boolean> {
     event.preventDefault()
     const form = event.target as HTMLFormElement
     const formData = new FormData(form)
@@ -75,7 +92,7 @@
       patient_id: selectedPatientId,
       diagnosis: formData.get("diagnosis"),
       treatment: formData.get("treatment"),
-      procedures: formData.get("procedures"),
+      procedure_ids: selectedProcedureIds,
       chief_complaint:
         typeof chiefComplaint === "string" && chiefComplaint.trim().length > 0 ? chiefComplaint : null,
     })
@@ -97,7 +114,11 @@
     return true
   }
 
-  async function updateMedicalRecord(event: SubmitEvent, recordId: string) {
+  async function updateMedicalRecord(
+    event: SubmitEvent,
+    recordId: string,
+    selectedProcedureIds: string[],
+  ) {
     event.preventDefault()
     const form = event.target as HTMLFormElement
     const formData = new FormData(form)
@@ -108,7 +129,7 @@
     const payload = MedicalRecordUpdateSchema.safeParse({
       diagnosis: formData.get("diagnosis") as string,
       treatment: formData.get("treatment") as string,
-      procedures: formData.get("procedures") as string,
+      procedure_ids: selectedProcedureIds,
       chief_complaint:
         typeof complaintRaw === "string" && complaintRaw.trim().length > 0 ? complaintRaw : null,
     })
@@ -170,6 +191,7 @@
     <MedicalRecordCreateDialog
       {createFormError}
       onSearchPatients={searchPatients}
+      onSearchProcedures={searchProcedures}
       onSubmit={createMedicalRecord}
     />
   </div>
@@ -185,5 +207,6 @@
     onNext={goNext}
     onPageSelect={loadMedicalRecordsPage}
     onUpdateMedicalRecord={updateMedicalRecord}
+    onSearchProcedures={searchProcedures}
   />
 </div>
