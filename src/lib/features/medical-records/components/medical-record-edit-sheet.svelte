@@ -119,8 +119,8 @@
             bind:selectedProcedures
             onSearch={onSearchProcedures}
           />
-          {#if $errors.procedure_ids}
-            <p class="text-sm text-destructive">{$errors.procedure_ids}</p>
+          {#if $errors.procedure_ids?._errors?.length}
+            <p class="text-sm text-destructive">{$errors.procedure_ids._errors.join(", ")}</p>
           {/if}
         </div>
 
