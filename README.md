@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind v4](https://img.shields.io/badge/Tailwind%20v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![License MIT](https://img.shields.io/github/license/awtb/clinic-registry-frontend?style=for-the-badge)](./LICENSE)
+[![License MIT](https://img.shields.io/github/license/awtb/clinic-registry-frontend?style=for-the-badge&v=2)](./LICENSE)
 
 Frontend for **clinic-registry**.
 
@@ -74,7 +74,6 @@ Run before opening a PR:
 
 ```bash
 pnpm check       # svelte-check against tsconfig.json
-pnpm typecheck   # tsc --noEmit
 pnpm lint        # ESLint (lint:fix to autofix)
 pnpm format      # Prettier (format:fix to write)
 ```
