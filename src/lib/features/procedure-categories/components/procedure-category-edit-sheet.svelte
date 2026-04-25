@@ -19,10 +19,7 @@
     onSubmit: (event: SubmitEvent, categoryId: string, isActive: boolean) => void | Promise<void>
   }>()
 
-  let isActive = $state(category.is_active)
-  $effect(() => {
-    isActive = category.is_active
-  })
+  let isActive = $derived(category.is_active)
 </script>
 
 <Sheet.Root>
