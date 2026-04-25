@@ -6,7 +6,8 @@
   import { buttonVariants } from "$lib/components/ui/button"
   import { CircleX, Home, ArrowLeft, RefreshCcw } from "lucide-svelte"
 
-  const { status, error: err } = $props<{ status: number; error: App.Error; data?: unknown }>()
+  const status = $derived($page.status)
+  const err = $derived($page.error)
 
   const isNotFound = $derived(status === 404)
   const title = $derived(isNotFound ? "Страница не найдена" : "Произошла ошибка")
