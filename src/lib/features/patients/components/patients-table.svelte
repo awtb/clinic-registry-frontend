@@ -44,7 +44,7 @@
     <Table.Root>
       <Table.Header>
         <Table.Row>
-          <Table.Head class="w-[100px] whitespace-normal">Пациент</Table.Head>
+          <Table.Head class="w-25 whitespace-normal">Пациент</Table.Head>
           <Table.Head class="whitespace-normal">Дата рождения</Table.Head>
           <Table.Head class="whitespace-normal">Последнее посещение</Table.Head>
           <Table.Head class="whitespace-normal">Паспорт</Table.Head>
@@ -67,20 +67,20 @@
         {:else}
           {#each patientsResponse.data.items as patient (patient.id)}
             <Table.Row>
-              <Table.Cell class="font-medium whitespace-normal break-words">
+              <Table.Cell class="font-medium whitespace-normal wrap-break-word">
                 {patient.first_name} {patient.last_name}
               </Table.Cell>
-              <Table.Cell class="whitespace-normal break-words">
+              <Table.Cell class="whitespace-normal wrap-break-word">
                 {patient.birth_date ?? "Не указано."}
               </Table.Cell>
-              <Table.Cell class="whitespace-normal break-words">
+              <Table.Cell class="whitespace-normal wrap-break-word">
                 {patient.last_visit ?? "Нет посещений."}
               </Table.Cell>
-              <Table.Cell class="whitespace-normal break-words">{patient.passport_number}</Table.Cell>
-              <Table.Cell class="whitespace-normal break-words">
+              <Table.Cell class="whitespace-normal wrap-break-word">{patient.passport_number}</Table.Cell>
+              <Table.Cell class="whitespace-normal wrap-break-word">
                 {patient.phone_number ?? "Не указано."}
               </Table.Cell>
-              <Table.Cell class="whitespace-normal break-words">{getGenderName(patient.gender)}</Table.Cell>
+              <Table.Cell class="whitespace-normal wrap-break-word">{getGenderName(patient.gender)}</Table.Cell>
               <Table.Cell class="text-end">
                 <PatientEditSheet
                   {patient}
