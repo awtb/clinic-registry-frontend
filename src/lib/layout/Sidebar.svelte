@@ -1,7 +1,15 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar"
   import { page } from "$app/stores"
-  import { BriefcaseMedical, History, Home, NotepadText, Users } from "lucide-svelte"
+  import {
+    BriefcaseMedical,
+    FolderTree,
+    History,
+    Home,
+    NotepadText,
+    Stethoscope,
+    Users,
+  } from "lucide-svelte"
   import { goto } from "$app/navigation"
   import { resolve } from "$app/paths"
 
@@ -33,6 +41,21 @@
           icon: History,
           title: "Логи",
           href: "/logs",
+        },
+      ],
+    },
+    {
+      title: "Словари",
+      items: [
+        {
+          icon: FolderTree,
+          title: "Категории процедур",
+          href: "/procedure-categories",
+        },
+        {
+          icon: Stethoscope,
+          title: "Процедуры",
+          href: "/procedures",
         },
       ],
     },
