@@ -4,31 +4,43 @@
   import * as Dialog from "$lib/components/ui/dialog"
   import { Input } from "$lib/components/ui/input/index.js"
   import { Label } from "$lib/components/ui/label/index.js"
-  import * as Popover from "$lib/components/ui/popover/index.js"
   import { Textarea } from "$lib/components/ui/textarea/index.js"
-  import { cn } from "$lib/utils.js"
-  import { CheckIcon, ChevronsUpDownIcon } from "lucide-svelte"
+  import ProcedureMultiSelect from "$lib/features/procedures/components/procedure-multi-select.svelte"
+  import type { Procedure } from "$lib/features/procedures/model/types"
   import type { PatientOption } from "../model/types"
+
+  type SelectedProcedure = { id: string; label: string }
 
   const {
     createFormError = "",
     onSubmit,
     onSearchPatients,
+    onSearchProcedures,
   } = $props<{
     createFormError?: string
-    onSubmit: (event: SubmitEvent, selectedPatientId: string) => void | Promise<boolean>
+    onSubmit: (
+      event: SubmitEvent,
+      selectedPatientId: string,
+      selectedProcedureIds: string[],
+    ) => void | Promise<boolean>
     onSearchPatients: (query: string) => Promise<PatientOption[]>
+    onSearchProcedures: (query: string) => Promise<Procedure[]>
   }>()
 
-  let open = $state(false)
   let patientInputValue = $state("")
-  let selectedPatientId = $state("")
-  let selectedPatientLabel = $state("")
+  let selectedPatient = $state<PatientOption | null>(null)
   let patientOptions = $state<PatientOption[]>([])
   let searchDebounceTimeout: ReturnType<typeof globalThis.setTimeout> | null = null
   let latestSearchRequestId = 0
 
-  const selectedValue = $derived(selectedPatientLabel)
+  let selectedProcedureIds = $state<string[]>([])
+  let selectedProcedures = $state<SelectedProcedure[]>([])
+
+  function formatPatientDetails(patient: PatientOption): string {
+    return [patient.passport_number, patient.birth_date, patient.phone_number]
+      .filter((value): value is string => Boolean(value && value.length > 0))
+      .join(" · ")
+  }
 
   async function loadPatientOptions(query: string) {
     const requestId = ++latestSearchRequestId
@@ -51,18 +63,28 @@
     }, 300)
   }
 
+  function selectPatient(patient: PatientOption) {
+    selectedPatient = patient
+    patientInputValue = ""
+    patientOptions = []
+  }
+
+  function clearSelectedPatient() {
+    selectedPatient = null
+  }
+
   async function handleSubmit(event: SubmitEvent) {
-    const result = await onSubmit(event, selectedPatientId)
+    const result = await onSubmit(event, selectedPatient?.value ?? "", selectedProcedureIds)
 
     if (result !== true) return
 
     const form = event.target as HTMLFormElement
     form.reset()
     patientInputValue = ""
-    selectedPatientId = ""
-    selectedPatientLabel = ""
+    selectedPatient = null
     patientOptions = []
-    open = false
+    selectedProcedureIds = []
+    selectedProcedures = []
   }
 </script>
 
@@ -71,7 +93,7 @@
     Добавить запись
   </Dialog.Trigger>
 
-  <Dialog.Content class="sm:max-w-[560px]">
+  <Dialog.Content class="sm:max-w-140">
     <form method="POST" onsubmit={handleSubmit}>
       <Dialog.Header>
         <Dialog.Title>Добавление медицинской записи</Dialog.Title>
@@ -82,51 +104,54 @@
         <div class="grid gap-3">
           <Label for="create-medical-record-patient">Пациент</Label>
 
-          <Popover.Root bind:open>
-            <Popover.Trigger>
-              {#snippet child({ props })}
-                <Button
-                  {...props}
-                  variant="outline"
-                  class="w-[200px] justify-between"
-                  role="combobox"
-                  aria-expanded={open}
-                  id="create-medical-record-patient"
-                >
-                  {selectedValue || "Выберите пациента"}
-                  <ChevronsUpDownIcon class="opacity-50" />
-                </Button>
-              {/snippet}
-            </Popover.Trigger>
-            <Popover.Content class="w-[200px] p-0">
-              <Command.Root>
-                <Command.Input
-                  placeholder="Поиск пациента"
-                  bind:value={patientInputValue}
-                  oninput={schedulePatientSearch}
-                />
-                <Command.List>
-                  <Command.Empty>Пациент не найден</Command.Empty>
-                  <Command.Group value="patients">
-                    {#each patientOptions as patient (patient.value)}
-                      <Command.Item
-                        value={patient.value}
-                        onSelect={() => {
-                          selectedPatientId = patient.value
-                          selectedPatientLabel = patient.label
-                          patientInputValue = patient.label
-                          open = false
-                        }}
-                      >
-                        <CheckIcon class={cn(selectedPatientId !== patient.value && "text-transparent")} />
-                        {patient.label}
-                      </Command.Item>
-                    {/each}
-                  </Command.Group>
-                </Command.List>
-              </Command.Root>
-            </Popover.Content>
-          </Popover.Root>
+          {#if selectedPatient}
+            <div
+              id="create-medical-record-patient"
+              class="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="font-medium truncate">{selectedPatient.label}</p>
+                {#if formatPatientDetails(selectedPatient)}
+                  <p class="text-xs text-muted-foreground truncate">
+                    {formatPatientDetails(selectedPatient)}
+                  </p>
+                {/if}
+              </div>
+              <Button type="button" variant="ghost" size="sm" onclick={clearSelectedPatient}>
+                Сменить
+              </Button>
+            </div>
+          {:else}
+            <Command.Root shouldFilter={false} class="rounded-md border">
+              <Command.Input
+                id="create-medical-record-patient"
+                placeholder="Поиск пациента (имя, фамилия)"
+                bind:value={patientInputValue}
+                oninput={schedulePatientSearch}
+              />
+              <Command.List class="max-h-56">
+                <Command.Empty>
+                  {patientInputValue.trim().length === 0
+                    ? "Начните вводить имя пациента"
+                    : "Пациент не найден"}
+                </Command.Empty>
+                <Command.Group value="patients">
+                  {#each patientOptions as patient (patient.value)}
+                    <Command.Item value={patient.value} onSelect={() => selectPatient(patient)}>
+                      <div class="flex flex-col gap-0.5">
+                        <span class="font-medium">{patient.label}</span>
+                        {#if formatPatientDetails(patient)}
+                          <span class="text-xs text-muted-foreground">
+                            {formatPatientDetails(patient)}
+                          </span>
+                        {/if}
+                      </div>
+                    </Command.Item>
+                  {/each}
+                </Command.Group>
+              </Command.List>
+            </Command.Root>
+          {/if}
         </div>
 
         <div class="grid gap-3">
@@ -146,7 +171,12 @@
 
         <div class="grid gap-3">
           <Label for="create-medical-record-procedures">Процедуры</Label>
-          <Textarea id="create-medical-record-procedures" name="procedures" rows={3} />
+          <ProcedureMultiSelect
+            triggerId="create-medical-record-procedures"
+            bind:selectedIds={selectedProcedureIds}
+            bind:selectedProcedures
+            onSearch={onSearchProcedures}
+          />
         </div>
 
         {#if createFormError}
