@@ -73,7 +73,7 @@
           </DropdownMenu.Content>
         </DropdownMenu.Root>
 
-        <span class="truncate max-w-[10rem]">{data.currentUser.first_name}</span>
+        <span class="truncate max-w-40">{data.currentUser.first_name}</span>
       </div>
     </div>
   </header>
