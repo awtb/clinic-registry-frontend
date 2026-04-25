@@ -20,10 +20,7 @@
     onSubmit: (event: SubmitEvent, patientId: string, genderValue: string) => void | Promise<void>
   }>()
 
-  let genderValue = $state("")
-  $effect(() => {
-    genderValue = patient.gender
-  })
+  let genderValue = $derived(patient.gender)
   const triggerGender = $derived(
     genders.find((gender: GenderOption) => gender.value === genderValue)?.label ?? "Выберите пол",
   )
