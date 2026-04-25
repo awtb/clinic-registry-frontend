@@ -31,7 +31,7 @@
 
 <Sheet.Root>
   <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Изменить</Sheet.Trigger>
-  <Sheet.Content class="sm:max-w-[425px]">
+  <Sheet.Content class="sm:max-w-106.25">
     <Sheet.Header>
       <Sheet.Title>Обновление данных пациента</Sheet.Title>
       <Sheet.Description>Внесите необходимые изменения в профиль пациента.</Sheet.Description>
