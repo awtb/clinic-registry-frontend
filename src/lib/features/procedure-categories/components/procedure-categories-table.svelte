@@ -2,14 +2,16 @@
   import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Table from "$lib/components/ui/table"
+  import { ProcedureCategoryUpdateSchema } from "$lib/schemas/procedure-category"
+  import type { z } from "zod"
   import ProcedureCategoryEditSheet from "./procedure-category-edit-sheet.svelte"
   import type { ProcedureCategoriesPageResponse } from "../model/types"
+
+  type UpdateData = z.infer<typeof ProcedureCategoryUpdateSchema>
 
   const {
     procedureCategoriesResponse,
     searchQuery,
-    editFormErrors,
-    isUpdatingCategory,
     totalItems,
     currentPage,
     pageSize,
@@ -20,15 +22,16 @@
   } = $props<{
     procedureCategoriesResponse: ProcedureCategoriesPageResponse | null
     searchQuery: string
-    editFormErrors: Record<string, string>
-    isUpdatingCategory: Record<string, boolean>
     totalItems: number
     currentPage: number
     pageSize: number
     onPrev: () => void
     onNext: () => void
     onPageSelect: (page: number) => void | Promise<void>
-    onUpdateCategory: (event: SubmitEvent, categoryId: string, isActive: boolean) => void | Promise<void>
+    onUpdateCategory: (
+      categoryId: string,
+      data: UpdateData,
+    ) => Promise<{ ok: boolean; error?: string }>
   }>()
 </script>
 
@@ -73,12 +76,7 @@
                 </Badge>
               </Table.Cell>
               <Table.Cell class="text-end">
-                <ProcedureCategoryEditSheet
-                  {category}
-                  errorMessage={editFormErrors[category.id] ?? ""}
-                  isSubmitting={Boolean(isUpdatingCategory[category.id])}
-                  onSubmit={onUpdateCategory}
-                />
+                <ProcedureCategoryEditSheet {category} onUpdate={onUpdateCategory} />
               </Table.Cell>
             </Table.Row>
           {/each}
