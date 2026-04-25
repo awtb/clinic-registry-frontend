@@ -7,34 +7,66 @@
   import { Textarea } from "$lib/components/ui/textarea/index.js"
   import ProcedureMultiSelect from "$lib/features/procedures/components/procedure-multi-select.svelte"
   import type { Procedure } from "$lib/features/procedures/model/types"
+  import { MedicalRecordCreateSchema } from "$lib/schemas/medical-record"
+  import { superForm } from "sveltekit-superforms"
+  import { zod4Client } from "sveltekit-superforms/adapters"
+  import type { z } from "zod"
   import type { PatientOption } from "../model/types"
 
+  type CreateData = z.infer<typeof MedicalRecordCreateSchema>
   type SelectedProcedure = { id: string; label: string }
 
-  const {
-    createFormError = "",
-    onSubmit,
-    onSearchPatients,
-    onSearchProcedures,
-  } = $props<{
-    createFormError?: string
-    onSubmit: (
-      event: SubmitEvent,
-      selectedPatientId: string,
-      selectedProcedureIds: string[],
-    ) => void | Promise<boolean>
+  const { onCreate, onSearchPatients, onSearchProcedures } = $props<{
+    onCreate: (data: CreateData) => Promise<{ ok: boolean; error?: string }>
     onSearchPatients: (query: string) => Promise<PatientOption[]>
     onSearchProcedures: (query: string) => Promise<Procedure[]>
   }>()
 
-  let patientInputValue = $state("")
+  let open = $state(false)
   let selectedPatient = $state<PatientOption | null>(null)
+  let selectedProcedures = $state<SelectedProcedure[]>([])
+
+  let patientInputValue = $state("")
   let patientOptions = $state<PatientOption[]>([])
   let searchDebounceTimeout: ReturnType<typeof globalThis.setTimeout> | null = null
   let latestSearchRequestId = 0
 
-  let selectedProcedureIds = $state<string[]>([])
-  let selectedProcedures = $state<SelectedProcedure[]>([])
+  const initialData: CreateData = {
+    patient_id: "",
+    diagnosis: "",
+    treatment: "",
+    procedure_ids: [],
+    chief_complaint: null,
+  }
+
+  const sf = superForm<CreateData, string>(initialData, {
+    SPA: true,
+    validators: zod4Client(MedicalRecordCreateSchema),
+    resetForm: false,
+    onUpdate: async ({ form }) => {
+      if (!form.valid) return
+
+      const data: CreateData = {
+        ...form.data,
+        chief_complaint: form.data.chief_complaint?.trim() ? form.data.chief_complaint : null,
+      }
+      const result = await onCreate(data)
+
+      if (!result.ok) {
+        form.message = result.error ?? "Не удалось создать медицинскую запись."
+        return
+      }
+
+      sf.reset()
+      selectedPatient = null
+      selectedProcedures = []
+      patientInputValue = ""
+      patientOptions = []
+      open = false
+    },
+  })
+
+  const { form, errors, message, enhance, submitting } = sf
 
   function formatPatientDetails(patient: PatientOption): string {
     return [patient.passport_number, patient.birth_date, patient.phone_number]
@@ -65,36 +97,24 @@
 
   function selectPatient(patient: PatientOption) {
     selectedPatient = patient
+    $form.patient_id = patient.value
     patientInputValue = ""
     patientOptions = []
   }
 
   function clearSelectedPatient() {
     selectedPatient = null
-  }
-
-  async function handleSubmit(event: SubmitEvent) {
-    const result = await onSubmit(event, selectedPatient?.value ?? "", selectedProcedureIds)
-
-    if (result !== true) return
-
-    const form = event.target as HTMLFormElement
-    form.reset()
-    patientInputValue = ""
-    selectedPatient = null
-    patientOptions = []
-    selectedProcedureIds = []
-    selectedProcedures = []
+    $form.patient_id = ""
   }
 </script>
 
-<Dialog.Root>
+<Dialog.Root bind:open>
   <Dialog.Trigger type="button" class={buttonVariants({ variant: "outline" })}>
     Добавить запись
   </Dialog.Trigger>
 
   <Dialog.Content class="sm:max-w-140">
-    <form method="POST" onsubmit={handleSubmit}>
+    <form method="POST" use:enhance>
       <Dialog.Header>
         <Dialog.Title>Добавление медицинской записи</Dialog.Title>
         <Dialog.Description>Заполните данные по пациенту и лечению.</Dialog.Description>
@@ -152,42 +172,75 @@
               </Command.List>
             </Command.Root>
           {/if}
+          {#if $errors.patient_id}
+            <p class="text-sm text-destructive">{$errors.patient_id}</p>
+          {/if}
         </div>
 
         <div class="grid gap-3">
           <Label for="create-medical-record-chief-complaint">Жалоба</Label>
-          <Textarea id="create-medical-record-chief-complaint" name="chief_complaint" rows={3} />
+          <Textarea
+            id="create-medical-record-chief-complaint"
+            name="chief_complaint"
+            rows={3}
+            bind:value={$form.chief_complaint}
+          />
+          {#if $errors.chief_complaint}
+            <p class="text-sm text-destructive">{$errors.chief_complaint}</p>
+          {/if}
         </div>
 
         <div class="grid gap-3">
           <Label for="create-medical-record-diagnosis">Диагноз</Label>
-          <Input id="create-medical-record-diagnosis" name="diagnosis" />
+          <Input
+            id="create-medical-record-diagnosis"
+            name="diagnosis"
+            bind:value={$form.diagnosis}
+            aria-invalid={$errors.diagnosis ? "true" : undefined}
+          />
+          {#if $errors.diagnosis}
+            <p class="text-sm text-destructive">{$errors.diagnosis}</p>
+          {/if}
         </div>
 
         <div class="grid gap-3">
           <Label for="create-medical-record-treatment">Лечение</Label>
-          <Textarea id="create-medical-record-treatment" name="treatment" rows={3} />
+          <Textarea
+            id="create-medical-record-treatment"
+            name="treatment"
+            rows={3}
+            bind:value={$form.treatment}
+            aria-invalid={$errors.treatment ? "true" : undefined}
+          />
+          {#if $errors.treatment}
+            <p class="text-sm text-destructive">{$errors.treatment}</p>
+          {/if}
         </div>
 
         <div class="grid gap-3">
           <Label for="create-medical-record-procedures">Процедуры</Label>
           <ProcedureMultiSelect
             triggerId="create-medical-record-procedures"
-            bind:selectedIds={selectedProcedureIds}
+            bind:selectedIds={$form.procedure_ids}
             bind:selectedProcedures
             onSearch={onSearchProcedures}
           />
+          {#if $errors.procedure_ids}
+            <p class="text-sm text-destructive">{$errors.procedure_ids}</p>
+          {/if}
         </div>
 
-        {#if createFormError}
-          <p class="text-sm text-destructive">{createFormError}</p>
+        {#if $message}
+          <p class="text-sm text-destructive">{$message}</p>
         {/if}
 
         <Dialog.Footer class="mt-4">
           <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
             Отменить
           </Dialog.Close>
-          <Button type="submit">Сохранить</Button>
+          <Button type="submit" disabled={$submitting}>
+            {$submitting ? "Сохранение..." : "Сохранить"}
+          </Button>
         </Dialog.Footer>
       </div>
     </form>
