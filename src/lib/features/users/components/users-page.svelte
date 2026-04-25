@@ -4,6 +4,7 @@
   import { SvelteURL, SvelteURLSearchParams } from "svelte/reactivity"
   import { toast } from "svelte-sonner"
   import { UserCreateSchema, UserUpdateSchema } from "$lib/schemas/user"
+  import type { z } from "zod"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import UserCreateDialog from "./user-create-dialog.svelte"
   import UsersSearch from "./users-search.svelte"
@@ -23,8 +24,6 @@
   const totalItems = $derived(usersResponse?.ok ? usersResponse.data.total_items : 0)
 
   let isLoading = $state(false)
-  let isUpdatingUser = $state<Record<string, boolean>>({})
-  let editFormErrors = $state<Record<string, string>>({})
 
   const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
     const params = new SvelteURLSearchParams()
@@ -37,72 +36,33 @@
     globalThis.history.replaceState(globalThis.history.state, "", nextUrl)
   }
 
-  const setEditFormError = (userId: string, message: string) => {
-    editFormErrors = { ...editFormErrors, [userId]: message }
+  async function createUser(
+    data: z.infer<typeof UserCreateSchema>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const response = await apiClient.users.create(data)
+
+    if (!response.ok) {
+      return { ok: false, error: response.error.message || "Не удалось создать пользователя." }
+    }
+
+    toast.success("Пользователь успешно добавлен.")
+    await loadUsersPage(1)
+    return { ok: true }
   }
 
-  async function createUser(event: SubmitEvent, roleValue: string) {
-    event.preventDefault()
-    const form = event.target as HTMLFormElement
-    const formData = new FormData(form)
+  async function updateUser(
+    userId: string,
+    data: z.infer<typeof UserUpdateSchema>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const response = await apiClient.users.update(userId, data)
 
-    const payload = UserCreateSchema.safeParse({
-      first_name: formData.get("first_name"),
-      last_name: formData.get("last_name"),
-      username: formData.get("username"),
-      email: formData.get("email"),
-      role: roleValue,
-      password: formData.get("password"),
-    })
-
-    if (!payload.success) {
-      globalThis.console.error("Validation failed:", payload.error)
-      return
+    if (!response.ok) {
+      return { ok: false, error: response.error.message || "Не удалось обновить пользователя." }
     }
 
-    const response = await apiClient.users.create(payload.data)
-
-    if (response.ok) {
-      await loadUsersPage(1)
-    } else {
-      globalThis.console.error("Failed to create user:", response)
-    }
-  }
-
-  async function updateUser(event: SubmitEvent, userId: string, roleValue: string) {
-    event.preventDefault()
-    const form = event.target as HTMLFormElement
-    setEditFormError(userId, "")
-    const formData = new FormData(form)
-    const newRole = roleValue.length > 0 ? roleValue : undefined
-    const usernameRaw = formData.get("username")
-    const newUsername =
-      typeof usernameRaw === "string" && usernameRaw.length > 0 ? usernameRaw : undefined
-
-    const updatePayload = UserUpdateSchema.safeParse({
-      first_name: formData.get("first_name") as string,
-      last_name: formData.get("last_name") as string,
-      username: newUsername,
-      email: formData.get("email") as string,
-      role: newRole,
-      password: (formData.get("password") as string) || undefined,
-    })
-
-    if (!updatePayload.success) {
-      setEditFormError(userId, updatePayload.error.issues[0]?.message ?? "Проверьте поля формы.")
-      return
-    }
-
-    isUpdatingUser = { ...isUpdatingUser, [userId]: true }
-    const response = await apiClient.users.update(userId, updatePayload.data)
-
-    if (response.ok) {
-      toast.success("Профиль пользователя успешно обновлен.")
-      await loadUsersPage(currentPage)
-    } else {
-      setEditFormError(userId, response.error.message || "Не удалось обновить пользователя.")
-    }
-    isUpdatingUser = { ...isUpdatingUser, [userId]: false }
+    toast.success("Профиль пользователя успешно обновлен.")
+    await loadUsersPage(currentPage)
+    return { ok: true }
   }
 
   let requestSeq = 0
@@ -151,7 +111,7 @@
 <div class="h-full min-h-0 flex flex-col">
   <div class="flex items-center justify-between mb-4">
     <h1 class="text-2xl font-bold mb-4">Пользователи системы</h1>
-    <UserCreateDialog roles={userRoleOptions} onSubmit={createUser} />
+    <UserCreateDialog roles={userRoleOptions} onCreate={createUser} />
   </div>
 
   <UsersSearch bind:searchQuery {isLoading} onSearchInput={scheduleSearch} onClear={clearSearch} />
@@ -160,8 +120,6 @@
     {usersResponse}
     roles={userRoleOptions}
     {searchQuery}
-    {editFormErrors}
-    {isUpdatingUser}
     {totalItems}
     {currentPage}
     {pageSize}
