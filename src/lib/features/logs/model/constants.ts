@@ -51,7 +51,7 @@ export const logFieldMap: Record<LogEntity, Array<{ key: string; label: string }
     { key: "patient_id", label: "Пациент ID" },
     { key: "diagnosis", label: "Диагноз" },
     { key: "treatment", label: "Лечение" },
-    { key: "procedures", label: "Процедуры" },
+    { key: "procedure_ids", label: "Процедуры (ID)" },
     { key: "chief_complaint", label: "Жалоба" },
     { key: "creator_id", label: "Создатель ID" },
   ],
