@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Table from "$lib/components/ui/table"
+  import type { Procedure } from "$lib/features/procedures/model/types"
   import MedicalRecordEditSheet from "./medical-record-edit-sheet.svelte"
   import type { MedicalRecord, MedicalRecordsPageResponse } from "../model/types"
 
@@ -15,6 +17,7 @@
     onNext,
     onPageSelect,
     onUpdateMedicalRecord,
+    onSearchProcedures,
   } = $props<{
     medicalRecordsResponse: MedicalRecordsPageResponse | null
     editFormErrors: Record<string, string>
@@ -25,7 +28,8 @@
     onPrev: () => void
     onNext: () => void
     onPageSelect: (page: number) => void | Promise<void>
-    onUpdateMedicalRecord: (event: SubmitEvent, recordId: string) => void | Promise<void>
+    onUpdateMedicalRecord: (event: SubmitEvent, recordId: string, selectedProcedureIds: string[]) => void | Promise<void>
+    onSearchProcedures: (query: string) => Promise<Procedure[]>
   }>()
 
   const patientNameFromRecord = (record: MedicalRecord) => {
@@ -76,7 +80,17 @@
               <Table.Cell>{record.chief_complaint ?? "Не указано."}</Table.Cell>
               <Table.Cell>{record.diagnosis}</Table.Cell>
               <Table.Cell>{record.treatment}</Table.Cell>
-              <Table.Cell>{record.procedures}</Table.Cell>
+              <Table.Cell>
+                {#if record.procedures.length === 0}
+                  —
+                {:else}
+                  <div class="flex flex-wrap gap-1">
+                    {#each record.procedures as procedure (procedure.id)}
+                      <Badge variant="secondary">{procedure.name}</Badge>
+                    {/each}
+                  </div>
+                {/if}
+              </Table.Cell>
               <Table.Cell>{creatorNameFromRecord(record)}</Table.Cell>
               <Table.Cell>{record.created_at}</Table.Cell>
               <Table.Cell class="text-end">
@@ -85,6 +99,7 @@
                   errorMessage={editFormErrors[record.id] ?? ""}
                   isSubmitting={Boolean(isUpdatingRecord[record.id])}
                   onSubmit={onUpdateMedicalRecord}
+                  {onSearchProcedures}
                 />
               </Table.Cell>
             </Table.Row>
