@@ -5,24 +5,48 @@
   import { Input } from "$lib/components/ui/input/index.js"
   import { Label } from "$lib/components/ui/label/index.js"
   import { Textarea } from "$lib/components/ui/textarea/index.js"
+  import { ProcedureCategoryCreateSchema } from "$lib/schemas/procedure-category"
+  import { superForm } from "sveltekit-superforms"
+  import { zod4Client } from "sveltekit-superforms/adapters"
+  import type { z } from "zod"
 
-  const { createFormError = "", onSubmit } = $props<{
-    createFormError?: string
-    onSubmit: (event: SubmitEvent, isActive: boolean) => void | Promise<boolean>
+  type CreateData = z.infer<typeof ProcedureCategoryCreateSchema>
+
+  const { onCreate } = $props<{
+    onCreate: (data: CreateData) => Promise<{ ok: boolean; error?: string }>
   }>()
 
   let open = $state(false)
-  let isActive = $state(true)
 
-  async function handleSubmit(event: SubmitEvent) {
-    const result = await onSubmit(event, isActive)
-    if (result !== true) return
-
-    const form = event.target as HTMLFormElement
-    form.reset()
-    isActive = true
-    open = false
+  const initialData: CreateData = {
+    code: "",
+    name: "",
+    description: null,
+    is_active: true,
   }
+
+  const { form, errors, message, enhance, submitting, reset } = superForm<CreateData, string>(
+    initialData,
+    {
+      SPA: true,
+      validators: zod4Client(ProcedureCategoryCreateSchema),
+      resetForm: false,
+      onUpdate: async ({ form }) => {
+        if (!form.valid) return
+
+        const description = form.data.description?.trim() ? form.data.description : null
+        const result = await onCreate({ ...form.data, description })
+
+        if (!result.ok) {
+          form.message = result.error ?? "Не удалось создать категорию."
+          return
+        }
+
+        reset()
+        open = false
+      },
+    },
+  )
 </script>
 
 <Dialog.Root bind:open>
@@ -31,7 +55,7 @@
   </Dialog.Trigger>
 
   <Dialog.Content class="sm:max-w-120">
-    <form method="POST" onsubmit={handleSubmit}>
+    <form method="POST" use:enhance>
       <Dialog.Header>
         <Dialog.Title>Новая категория процедур</Dialog.Title>
         <Dialog.Description>Заполните данные категории.</Dialog.Description>
@@ -40,33 +64,59 @@
       <div class="grid gap-4 mt-4">
         <div class="grid gap-3">
           <Label for="create-category-code">Код</Label>
-          <Input id="create-category-code" name="code" />
+          <Input
+            id="create-category-code"
+            name="code"
+            bind:value={$form.code}
+            aria-invalid={$errors.code ? "true" : undefined}
+          />
+          {#if $errors.code}
+            <p class="text-sm text-destructive">{$errors.code}</p>
+          {/if}
         </div>
 
         <div class="grid gap-3">
           <Label for="create-category-name">Название</Label>
-          <Input id="create-category-name" name="name" />
+          <Input
+            id="create-category-name"
+            name="name"
+            bind:value={$form.name}
+            aria-invalid={$errors.name ? "true" : undefined}
+          />
+          {#if $errors.name}
+            <p class="text-sm text-destructive">{$errors.name}</p>
+          {/if}
         </div>
 
         <div class="grid gap-3">
           <Label for="create-category-description">Описание</Label>
-          <Textarea id="create-category-description" name="description" rows={3} />
+          <Textarea
+            id="create-category-description"
+            name="description"
+            rows={3}
+            bind:value={$form.description}
+          />
+          {#if $errors.description}
+            <p class="text-sm text-destructive">{$errors.description}</p>
+          {/if}
         </div>
 
         <div class="flex items-center gap-2">
-          <Checkbox id="create-category-is-active" bind:checked={isActive} />
+          <Checkbox id="create-category-is-active" bind:checked={$form.is_active} />
           <Label for="create-category-is-active">Активна</Label>
         </div>
 
-        {#if createFormError}
-          <p class="text-sm text-destructive">{createFormError}</p>
+        {#if $message}
+          <p class="text-sm text-destructive">{$message}</p>
         {/if}
 
         <Dialog.Footer class="mt-4">
           <Dialog.Close type="button" class={buttonVariants({ variant: "outline" })}>
             Отменить
           </Dialog.Close>
-          <Button type="submit">Сохранить</Button>
+          <Button type="submit" disabled={$submitting}>
+            {$submitting ? "Сохранение..." : "Сохранить"}
+          </Button>
         </Dialog.Footer>
       </div>
     </form>
