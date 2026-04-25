@@ -3,13 +3,15 @@
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Table from "$lib/components/ui/table"
   import type { Procedure } from "$lib/features/procedures/model/types"
+  import { MedicalRecordUpdateSchema } from "$lib/schemas/medical-record"
+  import type { z } from "zod"
   import MedicalRecordEditSheet from "./medical-record-edit-sheet.svelte"
   import type { MedicalRecord, MedicalRecordsPageResponse } from "../model/types"
 
+  type UpdateData = z.infer<typeof MedicalRecordUpdateSchema>
+
   const {
     medicalRecordsResponse,
-    editFormErrors,
-    isUpdatingRecord,
     totalItems,
     currentPage,
     pageSize,
@@ -20,15 +22,16 @@
     onSearchProcedures,
   } = $props<{
     medicalRecordsResponse: MedicalRecordsPageResponse | null
-    editFormErrors: Record<string, string>
-    isUpdatingRecord: Record<string, boolean>
     totalItems: number
     currentPage: number
     pageSize: number
     onPrev: () => void
     onNext: () => void
     onPageSelect: (page: number) => void | Promise<void>
-    onUpdateMedicalRecord: (event: SubmitEvent, recordId: string, selectedProcedureIds: string[]) => void | Promise<void>
+    onUpdateMedicalRecord: (
+      recordId: string,
+      data: UpdateData,
+    ) => Promise<{ ok: boolean; error?: string }>
     onSearchProcedures: (query: string) => Promise<Procedure[]>
   }>()
 
@@ -96,9 +99,7 @@
               <Table.Cell class="text-end">
                 <MedicalRecordEditSheet
                   {record}
-                  errorMessage={editFormErrors[record.id] ?? ""}
-                  isSubmitting={Boolean(isUpdatingRecord[record.id])}
-                  onSubmit={onUpdateMedicalRecord}
+                  onUpdate={onUpdateMedicalRecord}
                   {onSearchProcedures}
                 />
               </Table.Cell>
