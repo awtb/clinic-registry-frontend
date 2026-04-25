@@ -1,15 +1,17 @@
 <script lang="ts">
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Table from "$lib/components/ui/table"
+  import { PatientUpdateSchema } from "$lib/schemas/patient"
+  import type { z } from "zod"
   import PatientEditSheet from "./patient-edit-sheet.svelte"
   import type { GenderOption, PatientsPageResponse } from "../model/types"
+
+  type UpdateData = z.infer<typeof PatientUpdateSchema>
 
   const {
     patientsResponse,
     genders,
     searchQuery,
-    editFormErrors,
-    isUpdatingPatient,
     totalItems,
     currentPage,
     pageSize,
@@ -21,15 +23,16 @@
     patientsResponse: PatientsPageResponse | null
     genders: GenderOption[]
     searchQuery: string
-    editFormErrors: Record<string, string>
-    isUpdatingPatient: Record<string, boolean>
     totalItems: number
     currentPage: number
     pageSize: number
     onPrev: () => void
     onNext: () => void
     onPageSelect: (page: number) => void | Promise<void>
-    onUpdatePatient: (event: SubmitEvent, patientId: string, genderValue: string) => void | Promise<void>
+    onUpdatePatient: (
+      patientId: string,
+      data: UpdateData,
+    ) => Promise<{ ok: boolean; error?: string }>
   }>()
 
   const getGenderName = (genderValue: string | null | undefined) => {
@@ -82,13 +85,7 @@
               </Table.Cell>
               <Table.Cell class="whitespace-normal wrap-break-word">{getGenderName(patient.gender)}</Table.Cell>
               <Table.Cell class="text-end">
-                <PatientEditSheet
-                  {patient}
-                  {genders}
-                  errorMessage={editFormErrors[patient.id] ?? ""}
-                  isSubmitting={Boolean(isUpdatingPatient[patient.id])}
-                  onSubmit={onUpdatePatient}
-                />
+                <PatientEditSheet {patient} {genders} onUpdate={onUpdatePatient} />
               </Table.Cell>
             </Table.Row>
           {/each}
