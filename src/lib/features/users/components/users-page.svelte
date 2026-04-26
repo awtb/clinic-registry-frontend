@@ -15,7 +15,9 @@
   const apiClient = getContext<ApiClient>(apiClientKey)
 
   const props = $props<{ data: UsersPageRouteData }>()
+  // svelte-ignore state_referenced_locally
   let usersResponse = $state(props.data.usersResponse)
+  // svelte-ignore state_referenced_locally
   let searchQuery = $state(props.data.searchQuery ?? "")
 
   let currentPage = $derived(usersResponse?.ok ? usersResponse.data.page : 1)
