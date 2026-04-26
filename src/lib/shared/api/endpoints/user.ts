@@ -19,7 +19,12 @@ const buildProfileMethod = (httpClient: Client) => {
 }
 
 const buildGetAllUsersMethod = (httpClient: Client) => {
-  return async (page: number, page_size: number, search_query?: string) => {
+  return async (
+    page: number,
+    page_size: number,
+    search_query?: string,
+    opts?: { signal?: AbortSignal },
+  ) => {
     const params: Record<string, string | number> = {
       page,
       page_size,
@@ -34,6 +39,7 @@ const buildGetAllUsersMethod = (httpClient: Client) => {
       method: "GET",
       params,
       schema: UserPageSchema,
+      signal: opts?.signal,
     })
   }
 }

@@ -72,8 +72,10 @@ const buildRawRequester = (fetchFn: typeof fetch, baseUrl: string) => {
         body: args.body,
         credentials: "include",
         cache: "no-store",
+        signal: args.signal,
       })
     } catch (e) {
+      if (args.signal?.aborted) throw e
       return { ok: false, status: 0, error: buildNetworkError(e) }
     }
 

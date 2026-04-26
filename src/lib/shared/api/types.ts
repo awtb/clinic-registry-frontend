@@ -16,6 +16,7 @@ export type RequestArgs = {
   headers?: Record<string, string>
   body?: BodyInit
   params?: Record<string, string | number>
+  signal?: AbortSignal
 }
 
 export type RequestWithSchemaArgs<T> = RequestArgs & {

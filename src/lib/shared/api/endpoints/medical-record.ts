@@ -12,12 +12,13 @@ const MedicalRecordPageSchema = createPageSchema(MedicalRecordSchema)
 type Client = ReturnType<typeof buildHttpClient>
 
 const buildGetAllMedicalRecordsMethod = (client: Client) => {
-  return async (page: number, page_size: number) => {
+  return async (page: number, page_size: number, opts?: { signal?: AbortSignal }) => {
     return await client.request({
       path: "medical-records",
       method: "GET",
       params: { page, page_size },
       schema: MedicalRecordPageSchema,
+      signal: opts?.signal,
     })
   }
 }
