@@ -20,6 +20,7 @@
 
   let open = $state(false)
 
+  // svelte-ignore state_referenced_locally
   const initialData: UpdateData = {
     first_name: user.first_name,
     last_name: user.last_name,
