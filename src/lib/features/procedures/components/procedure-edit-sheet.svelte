@@ -21,7 +21,7 @@
   }>()
 
   let open = $state(false)
-  let categoryLabel = $state(`${procedure.category.code} — ${procedure.category.name}`)
+  let categoryLabel = $derived(`${procedure.category.code} — ${procedure.category.name}`)
 
   const initialData: UpdateData = {
     code: procedure.code,
