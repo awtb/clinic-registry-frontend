@@ -17,6 +17,7 @@ const buildGetAllProceduresMethod = (client: Client) => {
     search_query?: string,
     category_id?: string,
     is_active?: boolean,
+    opts?: { signal?: AbortSignal },
   ) => {
     const params: Record<string, string | number> = { page, page_size }
 
@@ -32,6 +33,7 @@ const buildGetAllProceduresMethod = (client: Client) => {
       method: "GET",
       params,
       schema: ProcedurePageSchema,
+      signal: opts?.signal,
     })
   }
 }

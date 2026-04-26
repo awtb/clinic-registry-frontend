@@ -6,105 +6,145 @@
   import { PatientCreateSchema, PatientUpdateSchema } from "$lib/schemas/patient"
   import type { z } from "zod"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
+  import { createQuery, createMutation, useQueryClient } from "@tanstack/svelte-query"
   import PatientCreateDialog from "./patient-create-dialog.svelte"
   import PatientsSearch from "./patients-search.svelte"
   import PatientsTable from "./patients-table.svelte"
   import { patientGenderOptions } from "../model/constants"
-  import type { PatientsPageRouteData } from "../model/types"
+  import type {
+    PatientsPageData,
+    PatientsPageResponse,
+    PatientsPageRouteData,
+  } from "../model/types"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
+  const queryClient = useQueryClient()
 
   const props = $props<{ data: PatientsPageRouteData }>()
-  let patientsResponse = $state(props.data.patientsResponse)
+
+  // svelte-ignore state_referenced_locally
+  const initial = props.data.patientsResponse?.ok ? props.data.patientsResponse.data : undefined
+
+  // svelte-ignore state_referenced_locally
   let searchQuery = $state(props.data.searchQuery ?? "")
+  // svelte-ignore state_referenced_locally
+  let debouncedSearch = $state(props.data.searchQuery ?? "")
+  let page = $state(initial?.page ?? 1)
+  let pageSize = $state(initial?.page_size ?? 10)
 
-  let currentPage = $derived(patientsResponse?.ok ? patientsResponse.data.page : 1)
-  const totalPages = $derived(patientsResponse?.ok ? patientsResponse.data.total_pages : 1)
-  const pageSize = $derived(patientsResponse?.ok ? patientsResponse.data.page_size : 10)
-  const totalItems = $derived(patientsResponse?.ok ? patientsResponse.data.total_items : 0)
+  const patientsQuery = createQuery<PatientsPageData>(() => ({
+    queryKey: ["patients", { page, pageSize, search: debouncedSearch }],
+    queryFn: async ({ signal }) => {
+      const result = await apiClient.patients.getAll(page, pageSize, debouncedSearch, { signal })
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    initialData:
+      page === (initial?.page ?? 1) &&
+      pageSize === (initial?.page_size ?? 10) &&
+      debouncedSearch === (props.data.searchQuery ?? "")
+        ? initial
+        : undefined,
+    initialDataUpdatedAt: initial ? Date.now() : undefined,
+    placeholderData: (prev: PatientsPageData | undefined) => prev,
+  }))
 
-  let isLoading = $state(false)
-
-  const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
+  $effect(() => {
     const params = new SvelteURLSearchParams()
-    params.set("page", String(nextPage))
-    params.set("page_size", String(nextSize))
-    if (nextSearchQuery.trim().length > 0) params.set("search_query", nextSearchQuery.trim())
+    params.set("page", String(page))
+    params.set("page_size", String(pageSize))
+    if (debouncedSearch.trim().length > 0) params.set("search_query", debouncedSearch.trim())
 
     const nextUrl = new SvelteURL(resolve("/patients"), globalThis.location.origin)
     nextUrl.search = params.toString()
     globalThis.history.replaceState(globalThis.history.state, "", nextUrl)
-  }
+  })
 
-  async function createPatient(
-    data: z.infer<typeof PatientCreateSchema>,
-  ): Promise<{ ok: boolean; error?: string }> {
-    const response = await apiClient.patients.create(data)
+  const createPatientMut = createMutation(() => ({
+    mutationFn: async (data: z.infer<typeof PatientCreateSchema>) => {
+      const result = await apiClient.patients.create(data)
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    onSuccess: () => {
+      toast.success("Пациент успешно добавлен.")
+      page = 1
+      queryClient.invalidateQueries({ queryKey: ["patients"] })
+    },
+  }))
 
-    if (!response.ok) {
-      return { ok: false, error: response.error.message || "Не удалось создать пациента." }
+  const updatePatientMut = createMutation(() => ({
+    mutationFn: async (vars: { patientId: string; data: z.infer<typeof PatientUpdateSchema> }) => {
+      const result = await apiClient.patients.update(vars.patientId, vars.data)
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    onSuccess: () => {
+      toast.success("Данные о пациенте успешно обновлены.")
+      queryClient.invalidateQueries({ queryKey: ["patients"] })
+    },
+  }))
+
+  async function createPatient(data: z.infer<typeof PatientCreateSchema>) {
+    try {
+      await createPatientMut.mutateAsync(data)
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: (e as { message?: string })?.message ?? "Не удалось создать пациента.",
+      }
     }
-
-    toast.success("Пациент успешно добавлен.")
-    await loadPatientsPage(1)
-    return { ok: true }
   }
 
-  async function updatePatient(
-    patientId: string,
-    data: z.infer<typeof PatientUpdateSchema>,
-  ): Promise<{ ok: boolean; error?: string }> {
-    const response = await apiClient.patients.update(patientId, data)
-
-    if (!response.ok) {
-      return { ok: false, error: response.error.message || "Не удалось обновить пациента." }
+  async function updatePatient(patientId: string, data: z.infer<typeof PatientUpdateSchema>) {
+    try {
+      await updatePatientMut.mutateAsync({ patientId, data })
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: (e as { message?: string })?.message ?? "Не удалось обновить пациента.",
+      }
     }
-
-    toast.success("Данные о пациенте успешно обновлены.")
-    await loadPatientsPage(currentPage)
-    return { ok: true }
   }
 
-  let requestSeq = 0
-  async function loadPatientsPage(page: number) {
-    const seq = ++requestSeq
-    isLoading = true
-
-    const response = await apiClient.patients.getAll(page, pageSize, searchQuery)
-
-    if (!response.ok) {
-      globalThis.console.error("Failed to load patients:", response.error)
-      if (seq === requestSeq) isLoading = false
-      return
-    }
-
-    if (seq !== requestSeq) return
-
-    patientsResponse = { ok: true, status: response.status, data: response.data }
-    updateQueryParams(page, pageSize, searchQuery)
-
-    isLoading = false
-  }
+  const patientsResponse = $derived<PatientsPageResponse | null>(
+    patientsQuery.data ? { ok: true, status: 200, data: patientsQuery.data } : null,
+  )
+  const currentPage = $derived(patientsQuery.data?.page ?? page)
+  const totalPages = $derived(patientsQuery.data?.total_pages ?? 1)
+  const currentPageSize = $derived(patientsQuery.data?.page_size ?? pageSize)
+  const totalItems = $derived(patientsQuery.data?.total_items ?? 0)
 
   function goPrev() {
-    if (currentPage <= 1) return
-    loadPatientsPage(currentPage - 1)
+    if (page <= 1) return
+    page = page - 1
   }
 
   function goNext() {
-    if (currentPage >= totalPages) return
-    loadPatientsPage(currentPage + 1)
+    if (page >= totalPages) return
+    page = page + 1
+  }
+
+  function goToPage(p: number) {
+    page = p
   }
 
   let searchDebounce: ReturnType<typeof globalThis.setTimeout> | null = null
   const scheduleSearch = () => {
     if (searchDebounce) globalThis.clearTimeout(searchDebounce)
-    searchDebounce = globalThis.setTimeout(() => loadPatientsPage(1), 300)
+    searchDebounce = globalThis.setTimeout(() => {
+      page = 1
+      debouncedSearch = searchQuery
+    }, 300)
   }
 
   const clearSearch = () => {
+    if (searchDebounce) globalThis.clearTimeout(searchDebounce)
     searchQuery = ""
-    loadPatientsPage(1)
+    page = 1
+    debouncedSearch = ""
   }
 </script>
 
@@ -114,18 +154,23 @@
     <PatientCreateDialog genders={patientGenderOptions} onCreate={createPatient} />
   </div>
 
-  <PatientsSearch bind:searchQuery {isLoading} onSearchInput={scheduleSearch} onClear={clearSearch} />
+  <PatientsSearch
+    bind:searchQuery
+    isLoading={patientsQuery.isFetching}
+    onSearchInput={scheduleSearch}
+    onClear={clearSearch}
+  />
 
   <PatientsTable
     {patientsResponse}
     genders={patientGenderOptions}
-    {searchQuery}
+    searchQuery={debouncedSearch}
     {totalItems}
     {currentPage}
-    {pageSize}
+    pageSize={currentPageSize}
     onPrev={goPrev}
     onNext={goNext}
-    onPageSelect={loadPatientsPage}
+    onPageSelect={goToPage}
     onUpdatePatient={updatePatient}
   />
 </div>

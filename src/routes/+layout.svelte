@@ -13,6 +13,7 @@
   import { Toaster } from '$lib/components/ui/sonner/index.js'
   import { ModeWatcher, mode, toggleMode } from "mode-watcher"
   import { resolve } from '$app/paths'
+  import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query'
 
   let { data, children } = $props()
 
@@ -22,6 +23,15 @@
     // eslint-disable-next-line no-undef
     setContext(apiClientKey, buildApiClient(fetch, baseUrl))
   }
+
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,
+        retry: false,
+      },
+    },
+  })
 
 </script>
 
@@ -33,6 +43,7 @@
 <Toaster position="bottom-right"/>
 
 
+<QueryClientProvider client={queryClient}>
 <div class="h-dvh flex flex-col overflow-hidden">
   <header class="h-16 shrink-0 z-50 border-b bg-background/80 backdrop-blur">
     <div class="h-16 w-full flex items-center gap-4 px-6">
@@ -94,3 +105,4 @@
     {/if}
   </div>
 </div>
+</QueryClientProvider>

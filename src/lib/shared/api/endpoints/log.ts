@@ -14,7 +14,12 @@ export type LogsFilters = {
 }
 
 const buildGetAllLogsMethod = (client: Client) => {
-  return async (page: number, page_size: number, filters: LogsFilters = {}) => {
+  return async (
+    page: number,
+    page_size: number,
+    filters: LogsFilters = {},
+    opts?: { signal?: AbortSignal },
+  ) => {
     const params: Record<string, string | number> = {
       page,
       page_size,
@@ -44,6 +49,7 @@ const buildGetAllLogsMethod = (client: Client) => {
       method: "GET",
       params,
       schema: LogPageSchema,
+      signal: opts?.signal,
     })
   }
 }

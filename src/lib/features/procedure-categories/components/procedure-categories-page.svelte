@@ -9,112 +9,158 @@
   } from "$lib/schemas/procedure-category"
   import type { z } from "zod"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
+  import { createQuery, createMutation, useQueryClient } from "@tanstack/svelte-query"
   import ProcedureCategoriesSearch from "./procedure-categories-search.svelte"
   import ProcedureCategoriesTable from "./procedure-categories-table.svelte"
   import ProcedureCategoryCreateDialog from "./procedure-category-create-dialog.svelte"
-  import type { ProcedureCategoriesPageRouteData } from "../model/types"
+  import type {
+    ProcedureCategoriesPageData,
+    ProcedureCategoriesPageResponse,
+    ProcedureCategoriesPageRouteData,
+  } from "../model/types"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
+  const queryClient = useQueryClient()
 
   const props = $props<{ data: ProcedureCategoriesPageRouteData }>()
-  let procedureCategoriesResponse = $state(props.data.procedureCategoriesResponse)
+
+  // svelte-ignore state_referenced_locally
+  const initial = props.data.procedureCategoriesResponse?.ok
+    ? props.data.procedureCategoriesResponse.data
+    : undefined
+
+  // svelte-ignore state_referenced_locally
   let searchQuery = $state(props.data.searchQuery ?? "")
+  // svelte-ignore state_referenced_locally
+  let debouncedSearch = $state(props.data.searchQuery ?? "")
+  let page = $state(initial?.page ?? 1)
+  let pageSize = $state(initial?.page_size ?? 10)
 
-  let currentPage = $derived(
-    procedureCategoriesResponse?.ok ? procedureCategoriesResponse.data.page : 1,
-  )
-  const totalPages = $derived(
-    procedureCategoriesResponse?.ok ? procedureCategoriesResponse.data.total_pages : 1,
-  )
-  const pageSize = $derived(
-    procedureCategoriesResponse?.ok ? procedureCategoriesResponse.data.page_size : 10,
-  )
-  const totalItems = $derived(
-    procedureCategoriesResponse?.ok ? procedureCategoriesResponse.data.total_items : 0,
-  )
+  const categoriesQuery = createQuery<ProcedureCategoriesPageData>(() => ({
+    queryKey: ["procedure-categories", { page, pageSize, search: debouncedSearch }],
+    queryFn: async ({ signal }) => {
+      const result = await apiClient.procedureCategories.getAll(
+        page,
+        pageSize,
+        debouncedSearch,
+        undefined,
+        { signal },
+      )
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    initialData:
+      page === (initial?.page ?? 1) &&
+      pageSize === (initial?.page_size ?? 10) &&
+      debouncedSearch === (props.data.searchQuery ?? "")
+        ? initial
+        : undefined,
+    initialDataUpdatedAt: initial ? Date.now() : undefined,
+    placeholderData: (prev: ProcedureCategoriesPageData | undefined) => prev,
+  }))
 
-  let isLoading = $state(false)
-
-  const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
+  $effect(() => {
     const params = new SvelteURLSearchParams()
-    params.set("page", String(nextPage))
-    params.set("page_size", String(nextSize))
-    if (nextSearchQuery.trim().length > 0) params.set("search_query", nextSearchQuery.trim())
+    params.set("page", String(page))
+    params.set("page_size", String(pageSize))
+    if (debouncedSearch.trim().length > 0) params.set("search_query", debouncedSearch.trim())
 
     const nextUrl = new SvelteURL(resolve("/procedure-categories"), globalThis.location.origin)
     nextUrl.search = params.toString()
     globalThis.history.replaceState(globalThis.history.state, "", nextUrl)
-  }
+  })
 
-  async function createCategory(
-    data: z.infer<typeof ProcedureCategoryCreateSchema>,
-  ): Promise<{ ok: boolean; error?: string }> {
-    const response = await apiClient.procedureCategories.create(data)
+  const createCategoryMut = createMutation(() => ({
+    mutationFn: async (data: z.infer<typeof ProcedureCategoryCreateSchema>) => {
+      const result = await apiClient.procedureCategories.create(data)
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    onSuccess: () => {
+      toast.success("Категория успешно создана.")
+      page = 1
+      queryClient.invalidateQueries({ queryKey: ["procedure-categories"] })
+    },
+  }))
 
-    if (!response.ok) {
-      return { ok: false, error: response.error.message || "Не удалось создать категорию." }
+  const updateCategoryMut = createMutation(() => ({
+    mutationFn: async (vars: {
+      categoryId: string
+      data: z.infer<typeof ProcedureCategoryUpdateSchema>
+    }) => {
+      const result = await apiClient.procedureCategories.update(vars.categoryId, vars.data)
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    onSuccess: () => {
+      toast.success("Категория успешно обновлена.")
+      queryClient.invalidateQueries({ queryKey: ["procedure-categories"] })
+    },
+  }))
+
+  async function createCategory(data: z.infer<typeof ProcedureCategoryCreateSchema>) {
+    try {
+      await createCategoryMut.mutateAsync(data)
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: (e as { message?: string })?.message ?? "Не удалось создать категорию.",
+      }
     }
-
-    toast.success("Категория успешно создана.")
-    await loadCategoriesPage(1)
-    return { ok: true }
   }
 
   async function updateCategory(
     categoryId: string,
     data: z.infer<typeof ProcedureCategoryUpdateSchema>,
-  ): Promise<{ ok: boolean; error?: string }> {
-    const response = await apiClient.procedureCategories.update(categoryId, data)
-
-    if (!response.ok) {
-      return { ok: false, error: response.error.message || "Не удалось обновить категорию." }
+  ) {
+    try {
+      await updateCategoryMut.mutateAsync({ categoryId, data })
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: (e as { message?: string })?.message ?? "Не удалось обновить категорию.",
+      }
     }
-
-    toast.success("Категория успешно обновлена.")
-    await loadCategoriesPage(currentPage)
-    return { ok: true }
   }
 
-  let requestSeq = 0
-  async function loadCategoriesPage(page: number) {
-    const seq = ++requestSeq
-    isLoading = true
-
-    const response = await apiClient.procedureCategories.getAll(page, pageSize, searchQuery)
-
-    if (!response.ok) {
-      globalThis.console.error("Failed to load procedure categories:", response.error)
-      if (seq === requestSeq) isLoading = false
-      return
-    }
-
-    if (seq !== requestSeq) return
-
-    procedureCategoriesResponse = { ok: true, status: response.status, data: response.data }
-    updateQueryParams(page, pageSize, searchQuery)
-
-    isLoading = false
-  }
+  const procedureCategoriesResponse = $derived<ProcedureCategoriesPageResponse | null>(
+    categoriesQuery.data ? { ok: true, status: 200, data: categoriesQuery.data } : null,
+  )
+  const currentPage = $derived(categoriesQuery.data?.page ?? page)
+  const totalPages = $derived(categoriesQuery.data?.total_pages ?? 1)
+  const currentPageSize = $derived(categoriesQuery.data?.page_size ?? pageSize)
+  const totalItems = $derived(categoriesQuery.data?.total_items ?? 0)
 
   function goPrev() {
-    if (currentPage <= 1) return
-    loadCategoriesPage(currentPage - 1)
+    if (page <= 1) return
+    page = page - 1
   }
 
   function goNext() {
-    if (currentPage >= totalPages) return
-    loadCategoriesPage(currentPage + 1)
+    if (page >= totalPages) return
+    page = page + 1
+  }
+
+  function goToPage(p: number) {
+    page = p
   }
 
   let searchDebounce: ReturnType<typeof globalThis.setTimeout> | null = null
   const scheduleSearch = () => {
     if (searchDebounce) globalThis.clearTimeout(searchDebounce)
-    searchDebounce = globalThis.setTimeout(() => loadCategoriesPage(1), 300)
+    searchDebounce = globalThis.setTimeout(() => {
+      page = 1
+      debouncedSearch = searchQuery
+    }, 300)
   }
 
   const clearSearch = () => {
+    if (searchDebounce) globalThis.clearTimeout(searchDebounce)
     searchQuery = ""
-    loadCategoriesPage(1)
+    page = 1
+    debouncedSearch = ""
   }
 </script>
 
@@ -126,20 +172,20 @@
 
   <ProcedureCategoriesSearch
     bind:searchQuery
-    {isLoading}
+    isLoading={categoriesQuery.isFetching}
     onSearchInput={scheduleSearch}
     onClear={clearSearch}
   />
 
   <ProcedureCategoriesTable
     {procedureCategoriesResponse}
-    {searchQuery}
+    searchQuery={debouncedSearch}
     {totalItems}
     {currentPage}
-    {pageSize}
+    pageSize={currentPageSize}
     onPrev={goPrev}
     onNext={goNext}
-    onPageSelect={loadCategoriesPage}
+    onPageSelect={goToPage}
     onUpdateCategory={updateCategory}
   />
 </div>

@@ -1,30 +1,84 @@
 <script lang="ts">
   import { getContext } from "svelte"
+  import { createQuery } from "@tanstack/svelte-query"
   import type { LogAction, LogEntity } from "$lib/schemas/log"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
   import LogsFilters from "./logs-filters.svelte"
   import LogsTable from "./logs-table.svelte"
   import { actionOptions, entityOptions } from "../model/constants"
-  import type { ActorOption, LogsPageRouteData } from "../model/types"
+  import type {
+    ActorOption,
+    LogsPageData,
+    LogsPageResponse,
+    LogsPageRouteData,
+  } from "../model/types"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
 
   const props = $props<{ data: LogsPageRouteData }>()
 
-  let logsResponse = $state(props.data.logsResponse)
+  type AppliedFilters = {
+    actorId: string
+    entityType: LogEntity | ""
+    actionType: LogAction | ""
+    entityId: string
+    createdFrom: string
+    createdTo: string
+  }
+
+  // svelte-ignore state_referenced_locally
+  const initial = props.data.logsResponse?.ok ? props.data.logsResponse.data : undefined
+
+  // svelte-ignore state_referenced_locally
   let actorId = $state(props.data.filters.actorId ?? "")
+  // svelte-ignore state_referenced_locally
   let entityType = $state<LogEntity | "">(props.data.filters.entityType ?? "")
+  // svelte-ignore state_referenced_locally
   let actionType = $state<LogAction | "">(props.data.filters.actionType ?? "")
+  // svelte-ignore state_referenced_locally
   let entityId = $state(props.data.filters.entityId ?? "")
+  // svelte-ignore state_referenced_locally
   let createdFrom = $state(toDateTimeLocalValue(props.data.filters.createdFrom ?? ""))
+  // svelte-ignore state_referenced_locally
   let createdTo = $state(toDateTimeLocalValue(props.data.filters.createdTo ?? ""))
   let actorOptions = $state<ActorOption[]>([])
-  let isLoading = $state(false)
 
-  let currentPage = $derived(logsResponse?.ok ? logsResponse.data.page : 1)
-  const totalPages = $derived(logsResponse?.ok ? logsResponse.data.total_pages : 1)
-  const pageSize = $derived(logsResponse?.ok ? logsResponse.data.page_size : 10)
-  const totalItems = $derived(logsResponse?.ok ? logsResponse.data.total_items : 0)
+  // svelte-ignore state_referenced_locally
+  let appliedFilters = $state<AppliedFilters>({
+    actorId: props.data.filters.actorId ?? "",
+    entityType: (props.data.filters.entityType ?? "") as LogEntity | "",
+    actionType: (props.data.filters.actionType ?? "") as LogAction | "",
+    entityId: props.data.filters.entityId ?? "",
+    createdFrom: props.data.filters.createdFrom ?? "",
+    createdTo: props.data.filters.createdTo ?? "",
+  })
+
+  let page = $state(initial?.page ?? 1)
+  let pageSize = $state(initial?.page_size ?? 10)
+
+  const logsQuery = createQuery<LogsPageData>(() => ({
+    queryKey: ["logs", { page, pageSize, filters: appliedFilters }],
+    queryFn: async ({ signal }) => {
+      const result = await apiClient.logs.getAll(
+        page,
+        pageSize,
+        {
+          actor_id: appliedFilters.actorId.trim() || undefined,
+          entity_type: appliedFilters.entityType || undefined,
+          action_type: appliedFilters.actionType || undefined,
+          entity_id: appliedFilters.entityId.trim() || undefined,
+          created_from: appliedFilters.createdFrom || undefined,
+          created_to: appliedFilters.createdTo || undefined,
+        },
+        { signal },
+      )
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    initialData: page === (initial?.page ?? 1) && pageSize === (initial?.page_size ?? 10) ? initial : undefined,
+    initialDataUpdatedAt: initial ? Date.now() : undefined,
+    placeholderData: (prev: LogsPageData | undefined) => prev,
+  }))
 
   const triggerAction = $derived(
     actionOptions.find((option) => option.value === actionType)?.label ?? "Все действия",
@@ -42,10 +96,10 @@
   )
 
   function toIsoDateTime(value: string) {
-    if (value.trim().length === 0) return undefined
+    if (value.trim().length === 0) return ""
 
     const parsedDate = new Date(value)
-    if (Number.isNaN(parsedDate.getTime())) return undefined
+    if (Number.isNaN(parsedDate.getTime())) return ""
 
     return parsedDate.toISOString()
   }
@@ -78,54 +132,57 @@
     }))
   }
 
-  let requestSeq = 0
-  async function loadLogsPage(page: number) {
-    const seq = ++requestSeq
-    isLoading = true
-
-    const response = await apiClient.logs.getAll(page, pageSize, {
-      actor_id: actorId.trim() || undefined,
-      entity_type: entityType || undefined,
-      action_type: actionType || undefined,
-      entity_id: entityId.trim() || undefined,
-      created_from: toIsoDateTime(createdFrom),
-      created_to: toIsoDateTime(createdTo),
-    })
-
-    if (!response.ok) {
-      if (seq === requestSeq) isLoading = false
-      return
-    }
-
-    if (seq !== requestSeq) return
-
-    logsResponse = { ok: true, status: response.status, data: response.data }
-    isLoading = false
-  }
-
-  const submitFilters = async (event: SubmitEvent) => {
+  const submitFilters = (event: SubmitEvent) => {
     event.preventDefault()
-    await loadLogsPage(1)
+    page = 1
+    appliedFilters = {
+      actorId,
+      entityType,
+      actionType,
+      entityId,
+      createdFrom: toIsoDateTime(createdFrom),
+      createdTo: toIsoDateTime(createdTo),
+    }
   }
 
-  const clearFilters = async () => {
+  const clearFilters = () => {
     actorId = ""
     entityType = ""
     actionType = ""
     entityId = ""
     createdFrom = ""
     createdTo = ""
-    await loadLogsPage(1)
+    page = 1
+    appliedFilters = {
+      actorId: "",
+      entityType: "",
+      actionType: "",
+      entityId: "",
+      createdFrom: "",
+      createdTo: "",
+    }
   }
 
+  const logsResponse = $derived<LogsPageResponse | null>(
+    logsQuery.data ? { ok: true, status: 200, data: logsQuery.data } : null,
+  )
+  const currentPage = $derived(logsQuery.data?.page ?? page)
+  const totalPages = $derived(logsQuery.data?.total_pages ?? 1)
+  const currentPageSize = $derived(logsQuery.data?.page_size ?? pageSize)
+  const totalItems = $derived(logsQuery.data?.total_items ?? 0)
+
   function goPrev() {
-    if (currentPage <= 1) return
-    loadLogsPage(currentPage - 1)
+    if (page <= 1) return
+    page = page - 1
   }
 
   function goNext() {
-    if (currentPage >= totalPages) return
-    loadLogsPage(currentPage + 1)
+    if (page >= totalPages) return
+    page = page + 1
+  }
+
+  function goToPage(p: number) {
+    page = p
   }
 </script>
 
@@ -143,7 +200,7 @@
       {triggerAction}
       {triggerEntity}
       {hasActiveFilters}
-      {isLoading}
+      isLoading={logsQuery.isFetching}
       {actionOptions}
       {entityOptions}
       onSubmit={submitFilters}
@@ -157,9 +214,9 @@
     {hasActiveFilters}
     {totalItems}
     {currentPage}
-    {pageSize}
+    pageSize={currentPageSize}
     onPrev={goPrev}
     onNext={goNext}
-    onPageSelect={loadLogsPage}
+    onPageSelect={goToPage}
   />
 </div>

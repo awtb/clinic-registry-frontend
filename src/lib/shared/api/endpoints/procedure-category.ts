@@ -11,7 +11,13 @@ type Client = ReturnType<typeof buildHttpClient>
 const ProcedureCategoryPageSchema = createPageSchema(ProcedureCategorySchema)
 
 const buildGetAllProcedureCategoriesMethod = (client: Client) => {
-  return async (page: number, page_size: number, search_query?: string, is_active?: boolean) => {
+  return async (
+    page: number,
+    page_size: number,
+    search_query?: string,
+    is_active?: boolean,
+    opts?: { signal?: AbortSignal },
+  ) => {
     const params: Record<string, string | number> = { page, page_size }
 
     if (search_query && search_query.trim().length > 0) {
@@ -25,6 +31,7 @@ const buildGetAllProcedureCategoriesMethod = (client: Client) => {
       method: "GET",
       params,
       schema: ProcedureCategoryPageSchema,
+      signal: opts?.signal,
     })
   }
 }

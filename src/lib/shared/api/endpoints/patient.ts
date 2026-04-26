@@ -8,7 +8,12 @@ type PatientUpdate = z.infer<typeof PatientUpdateSchema>
 const PatientPageSchema = createPageSchema(PatientSchema)
 
 const buildGetAllPatientsMethod = (httpClient: Client) => {
-  return async (page: number, page_size: number, search_query?: string) => {
+  return async (
+    page: number,
+    page_size: number,
+    search_query?: string,
+    opts?: { signal?: AbortSignal },
+  ) => {
     const params: Record<string, string | number> = {
       page,
       page_size,
@@ -23,6 +28,7 @@ const buildGetAllPatientsMethod = (httpClient: Client) => {
       method: "GET",
       params,
       schema: PatientPageSchema,
+      signal: opts?.signal,
     })
   }
 }

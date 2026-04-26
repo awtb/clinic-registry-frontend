@@ -6,107 +6,141 @@
   import { UserCreateSchema, UserUpdateSchema } from "$lib/schemas/user"
   import type { z } from "zod"
   import { type ApiClient, apiClientKey } from "$lib/shared/api/context"
+  import { createQuery, createMutation, useQueryClient } from "@tanstack/svelte-query"
   import UserCreateDialog from "./user-create-dialog.svelte"
   import UsersSearch from "./users-search.svelte"
   import UsersTable from "./users-table.svelte"
   import { userRoleOptions } from "../model/constants"
-  import type { UsersPageRouteData } from "../model/types"
+  import type { UsersPageData, UsersPageResponse, UsersPageRouteData } from "../model/types"
 
   const apiClient = getContext<ApiClient>(apiClientKey)
+  const queryClient = useQueryClient()
 
   const props = $props<{ data: UsersPageRouteData }>()
+
   // svelte-ignore state_referenced_locally
-  let usersResponse = $state(props.data.usersResponse)
+  const initial = props.data.usersResponse?.ok ? props.data.usersResponse.data : undefined
+
   // svelte-ignore state_referenced_locally
   let searchQuery = $state(props.data.searchQuery ?? "")
+  // svelte-ignore state_referenced_locally
+  let debouncedSearch = $state(props.data.searchQuery ?? "")
+  let page = $state(initial?.page ?? 1)
+  let pageSize = $state(initial?.page_size ?? 10)
 
-  let currentPage = $derived(usersResponse?.ok ? usersResponse.data.page : 1)
-  const totalPages = $derived(usersResponse?.ok ? usersResponse.data.total_pages : 1)
-  const pageSize = $derived(usersResponse?.ok ? usersResponse.data.page_size : 10)
-  const totalItems = $derived(usersResponse?.ok ? usersResponse.data.total_items : 0)
+  const usersQuery = createQuery<UsersPageData>(() => ({
+    queryKey: ["users", { page, pageSize, search: debouncedSearch }],
+    queryFn: async ({ signal }) => {
+      const result = await apiClient.users.getAll(page, pageSize, debouncedSearch, { signal })
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    initialData:
+      page === (initial?.page ?? 1) &&
+      pageSize === (initial?.page_size ?? 10) &&
+      debouncedSearch === (props.data.searchQuery ?? "")
+        ? initial
+        : undefined,
+    initialDataUpdatedAt: initial ? Date.now() : undefined,
+    placeholderData: (prev: UsersPageData | undefined) => prev,
+  }))
 
-  let isLoading = $state(false)
-
-  const updateQueryParams = (nextPage: number, nextSize: number, nextSearchQuery: string) => {
+  $effect(() => {
     const params = new SvelteURLSearchParams()
-    params.set("page", String(nextPage))
-    params.set("page_size", String(nextSize))
-    if (nextSearchQuery.trim().length > 0) params.set("search_query", nextSearchQuery.trim())
+    params.set("page", String(page))
+    params.set("page_size", String(pageSize))
+    if (debouncedSearch.trim().length > 0) params.set("search_query", debouncedSearch.trim())
 
     const nextUrl = new SvelteURL(resolve("/users"), globalThis.location.origin)
     nextUrl.search = params.toString()
     globalThis.history.replaceState(globalThis.history.state, "", nextUrl)
-  }
+  })
 
-  async function createUser(
-    data: z.infer<typeof UserCreateSchema>,
-  ): Promise<{ ok: boolean; error?: string }> {
-    const response = await apiClient.users.create(data)
+  const createUserMut = createMutation(() => ({
+    mutationFn: async (data: z.infer<typeof UserCreateSchema>) => {
+      const result = await apiClient.users.create(data)
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    onSuccess: () => {
+      toast.success("Пользователь успешно добавлен.")
+      page = 1
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+  }))
 
-    if (!response.ok) {
-      return { ok: false, error: response.error.message || "Не удалось создать пользователя." }
+  const updateUserMut = createMutation(() => ({
+    mutationFn: async (vars: { userId: string; data: z.infer<typeof UserUpdateSchema> }) => {
+      const result = await apiClient.users.update(vars.userId, vars.data)
+      if (!result.ok) throw result.error
+      return result.data
+    },
+    onSuccess: () => {
+      toast.success("Профиль пользователя успешно обновлен.")
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+  }))
+
+  async function createUser(data: z.infer<typeof UserCreateSchema>) {
+    try {
+      await createUserMut.mutateAsync(data)
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: (e as { message?: string })?.message ?? "Не удалось создать пользователя.",
+      }
     }
-
-    toast.success("Пользователь успешно добавлен.")
-    await loadUsersPage(1)
-    return { ok: true }
   }
 
-  async function updateUser(
-    userId: string,
-    data: z.infer<typeof UserUpdateSchema>,
-  ): Promise<{ ok: boolean; error?: string }> {
-    const response = await apiClient.users.update(userId, data)
-
-    if (!response.ok) {
-      return { ok: false, error: response.error.message || "Не удалось обновить пользователя." }
+  async function updateUser(userId: string, data: z.infer<typeof UserUpdateSchema>) {
+    try {
+      await updateUserMut.mutateAsync({ userId, data })
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: (e as { message?: string })?.message ?? "Не удалось обновить пользователя.",
+      }
     }
-
-    toast.success("Профиль пользователя успешно обновлен.")
-    await loadUsersPage(currentPage)
-    return { ok: true }
   }
 
-  let requestSeq = 0
-  async function loadUsersPage(page: number) {
-    const seq = ++requestSeq
-    isLoading = true
-
-    const response = await apiClient.users.getAll(page, pageSize, searchQuery)
-
-    if (!response.ok) {
-      globalThis.console.error("Failed to load users:", response.error)
-      if (seq === requestSeq) isLoading = false
-      return
-    }
-
-    if (seq !== requestSeq) return
-
-    usersResponse = { ok: true, status: response.status, data: response.data }
-    updateQueryParams(page, pageSize, searchQuery)
-
-    isLoading = false
-  }
+  const usersResponse = $derived<UsersPageResponse | null>(
+    usersQuery.data ? { ok: true, status: 200, data: usersQuery.data } : null,
+  )
+  const currentPage = $derived(usersQuery.data?.page ?? page)
+  const totalPages = $derived(usersQuery.data?.total_pages ?? 1)
+  const currentPageSize = $derived(usersQuery.data?.page_size ?? pageSize)
+  const totalItems = $derived(usersQuery.data?.total_items ?? 0)
 
   function goPrev() {
-    if (currentPage <= 1) return
-    loadUsersPage(currentPage - 1)
+    if (page <= 1) return
+    page = page - 1
   }
 
   function goNext() {
-    if (currentPage >= totalPages) return
-    loadUsersPage(currentPage + 1)
+    if (page >= totalPages) return
+    page = page + 1
+  }
+
+  function goToPage(p: number) {
+    page = p
   }
 
   let searchDebounce: ReturnType<typeof globalThis.setTimeout> | null = null
   const scheduleSearch = () => {
     if (searchDebounce) globalThis.clearTimeout(searchDebounce)
-    searchDebounce = globalThis.setTimeout(() => loadUsersPage(1), 300)
+    searchDebounce = globalThis.setTimeout(() => {
+      page = 1
+      debouncedSearch = searchQuery
+    }, 300)
   }
 
   const clearSearch = () => {
+    if (searchDebounce) globalThis.clearTimeout(searchDebounce)
     searchQuery = ""
-    loadUsersPage(1)
+    page = 1
+    debouncedSearch = ""
   }
 </script>
 
@@ -116,18 +150,23 @@
     <UserCreateDialog roles={userRoleOptions} onCreate={createUser} />
   </div>
 
-  <UsersSearch bind:searchQuery {isLoading} onSearchInput={scheduleSearch} onClear={clearSearch} />
+  <UsersSearch
+    bind:searchQuery
+    isLoading={usersQuery.isFetching}
+    onSearchInput={scheduleSearch}
+    onClear={clearSearch}
+  />
 
   <UsersTable
     {usersResponse}
     roles={userRoleOptions}
-    {searchQuery}
+    searchQuery={debouncedSearch}
     {totalItems}
     {currentPage}
-    {pageSize}
+    pageSize={currentPageSize}
     onPrev={goPrev}
     onNext={goNext}
-    onPageSelect={loadUsersPage}
+    onPageSelect={goToPage}
     onUpdateUser={updateUser}
   />
 </div>
