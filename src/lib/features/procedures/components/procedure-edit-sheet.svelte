@@ -23,6 +23,7 @@
   let open = $state(false)
   let categoryLabel = $derived(`${procedure.category.code} — ${procedure.category.name}`)
 
+  // svelte-ignore state_referenced_locally
   const initialData: UpdateData = {
     code: procedure.code,
     name: procedure.name,
