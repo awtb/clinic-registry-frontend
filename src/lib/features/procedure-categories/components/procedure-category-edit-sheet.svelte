@@ -20,6 +20,7 @@
 
   let open = $state(false)
 
+  // svelte-ignore state_referenced_locally
   const initialData: UpdateData = {
     code: category.code,
     name: category.name,
