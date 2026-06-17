@@ -16,6 +16,7 @@ export const MedicalRecordSchema = z.object({
   treatment: z.string(),
   procedure_ids: z.array(z.string()),
   procedures: z.array(ProcedureSchema),
+  total_price: z.string(),
   chief_complaint: z.string().nullable(),
   creator_id: z.string(),
   creator: UserSchema,

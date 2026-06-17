@@ -6,6 +6,7 @@
   import { Label } from "$lib/components/ui/label/index.js"
   import { Textarea } from "$lib/components/ui/textarea/index.js"
   import ProcedureMultiSelect from "$lib/features/procedures/components/procedure-multi-select.svelte"
+  import { formatPrice } from "$lib/features/procedures/model/format"
   import type { Procedure } from "$lib/features/procedures/model/types"
   import { MedicalRecordCreateSchema } from "$lib/schemas/medical-record"
   import { superForm } from "sveltekit-superforms"
@@ -14,7 +15,7 @@
   import type { PatientOption } from "../model/types"
 
   type CreateData = z.infer<typeof MedicalRecordCreateSchema>
-  type SelectedProcedure = { id: string; label: string }
+  type SelectedProcedure = { id: string; label: string; price: string }
 
   const { onCreate, onSearchPatients, onSearchProcedures } = $props<{
     onCreate: (data: CreateData) => Promise<{ ok: boolean; error?: string }>
@@ -67,6 +68,13 @@
   })
 
   const { form, errors, message, enhance, submitting } = sf
+
+  const proceduresTotal = $derived(
+    selectedProcedures.reduce(
+      (sum, procedure) => sum + (Number.parseFloat(procedure.price) || 0),
+      0,
+    ),
+  )
 
   function formatPatientDetails(patient: PatientOption): string {
     return [patient.passport_number, patient.birth_date, patient.phone_number]
@@ -225,6 +233,12 @@
             bind:selectedProcedures
             onSearch={onSearchProcedures}
           />
+          {#if selectedProcedures.length > 0}
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted-foreground">Итого</span>
+              <span class="font-medium tabular-nums">{formatPrice(proceduresTotal)}</span>
+            </div>
+          {/if}
           {#if $errors.procedure_ids?._errors?.length}
             <p class="text-sm text-destructive">{$errors.procedure_ids._errors.join(", ")}</p>
           {/if}

@@ -5,6 +5,7 @@
   import * as Sheet from "$lib/components/ui/sheet"
   import { Textarea } from "$lib/components/ui/textarea/index.js"
   import ProcedureMultiSelect from "$lib/features/procedures/components/procedure-multi-select.svelte"
+  import { formatPrice } from "$lib/features/procedures/model/format"
   import type { Procedure } from "$lib/features/procedures/model/types"
   import { MedicalRecordUpdateSchema } from "$lib/schemas/medical-record"
   import { superForm } from "sveltekit-superforms"
@@ -13,7 +14,7 @@
   import type { MedicalRecord } from "../model/types"
 
   type UpdateData = z.infer<typeof MedicalRecordUpdateSchema>
-  type SelectedProcedure = { id: string; label: string }
+  type SelectedProcedure = { id: string; label: string; price: string }
 
   const { record, onUpdate, onSearchProcedures } = $props<{
     record: MedicalRecord
@@ -26,6 +27,7 @@
     record.procedures.map((procedure: Procedure) => ({
       id: procedure.id,
       label: `${procedure.code} — ${procedure.name}`,
+      price: procedure.default_price,
     })),
   )
 
@@ -59,6 +61,13 @@
   })
 
   const { form, errors, message, enhance, submitting } = sf
+
+  const proceduresTotal = $derived(
+    selectedProcedures.reduce(
+      (sum, procedure) => sum + (Number.parseFloat(procedure.price) || 0),
+      0,
+    ),
+  )
 </script>
 
 <Sheet.Root bind:open>
@@ -119,6 +128,12 @@
             bind:selectedProcedures
             onSearch={onSearchProcedures}
           />
+          {#if selectedProcedures.length > 0}
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted-foreground">Итого</span>
+              <span class="font-medium tabular-nums">{formatPrice(proceduresTotal)}</span>
+            </div>
+          {/if}
           {#if $errors.procedure_ids?._errors?.length}
             <p class="text-sm text-destructive">{$errors.procedure_ids._errors.join(", ")}</p>
           {/if}

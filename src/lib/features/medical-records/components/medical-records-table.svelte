@@ -2,6 +2,7 @@
   import { Badge } from "$lib/components/ui/badge"
   import * as Pagination from "$lib/components/ui/pagination/index.js"
   import * as Table from "$lib/components/ui/table"
+  import { formatPrice } from "$lib/features/procedures/model/format"
   import type { Procedure } from "$lib/features/procedures/model/types"
   import { MedicalRecordUpdateSchema } from "$lib/schemas/medical-record"
   import type { z } from "zod"
@@ -66,6 +67,7 @@
           <Table.Head>Диагноз</Table.Head>
           <Table.Head>Лечение</Table.Head>
           <Table.Head>Процедуры</Table.Head>
+          <Table.Head class="text-end">Стоимость</Table.Head>
           <Table.Head>Врач</Table.Head>
           <Table.Head>Создано</Table.Head>
           <Table.Head class="text-end">Действия</Table.Head>
@@ -74,7 +76,7 @@
       <Table.Body>
         {#if medicalRecordsResponse === null || !medicalRecordsResponse.ok || medicalRecordsResponse.data.items.length === 0}
           <Table.Row>
-            <Table.Cell colspan={8} class="text-center py-4">Нет данных для отображения</Table.Cell>
+            <Table.Cell colspan={9} class="text-center py-4">Нет данных для отображения</Table.Cell>
           </Table.Row>
         {:else}
           {#each medicalRecordsResponse.data.items as record (record.id)}
@@ -93,6 +95,9 @@
                     {/each}
                   </div>
                 {/if}
+              </Table.Cell>
+              <Table.Cell class="text-end whitespace-nowrap tabular-nums">
+                {formatPrice(record.total_price)}
               </Table.Cell>
               <Table.Cell>{creatorNameFromRecord(record)}</Table.Cell>
               <Table.Cell>{record.created_at}</Table.Cell>

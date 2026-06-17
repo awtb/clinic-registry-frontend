@@ -10,6 +10,7 @@
   type SelectedProcedure = {
     id: string
     label: string
+    price: string
   }
 
   let {
@@ -67,7 +68,7 @@
     selectedIds = [...selectedIds, procedure.id]
     selectedProcedures = [
       ...selectedProcedures,
-      { id: procedure.id, label: formatLabel(procedure) },
+      { id: procedure.id, label: formatLabel(procedure), price: procedure.default_price },
     ]
   }
 
